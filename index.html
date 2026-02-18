@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>River Raid v2 - Atari 2600 Clone</title>
+    <title>River Raid v3 - Atari 2600 Clone</title>
     <style>
         * {
             margin: 0;
@@ -100,6 +100,66 @@
             font-size: 48px;
             color: #ffff00;
         }
+        /* v3: Speed settings panel */
+        .settings-panel {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border: 2px solid #ff6600;
+            background: rgba(20, 10, 0, 0.8);
+            text-align: center;
+            min-width: 280px;
+        }
+        .settings-panel h3 {
+            color: #ff6600;
+            font-size: 14px;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .slider-row label {
+            color: #66ff66;
+            font-size: 12px;
+            min-width: 90px;
+            text-align: left;
+        }
+        .slider-row input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 120px;
+            height: 8px;
+            background: #333;
+            border-radius: 0;
+            outline: none;
+            border: 1px solid #ff6600;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 18px;
+            background: #00ffff;
+            border: 1px solid #008888;
+            cursor: pointer;
+        }
+        .slider-row input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 18px;
+            background: #00ffff;
+            border: 1px solid #008888;
+            cursor: pointer;
+            border-radius: 0;
+        }
+        .slider-val {
+            color: #00ffff;
+            font-size: 12px;
+            min-width: 35px;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -107,7 +167,7 @@
     <div id="overlay">
         <div id="startScreen">
             <div class="title">RIVER RAID</div>
-            <div class="version">v2</div>
+            <div class="version">v3</div>
             <div class="subtitle">Atari 2600 Clone</div>
             <div class="instructions">
                 <span>← → or A D</span> : Move Left/Right<br>
@@ -117,6 +177,19 @@
                 Destroy enemies, refuel at depots<br>
                 Avoid riverbanks and bridges!<br>
                 <span>Touch controls available on mobile</span>
+            </div>
+            <div class="settings-panel">
+                <h3>⚙ SPEED SETTINGS</h3>
+                <div class="slider-row">
+                    <label>SCROLL SPD</label>
+                    <input type="range" id="scrollSpeedSlider" min="0.5" max="6" step="0.1" value="1.5">
+                    <span class="slider-val" id="scrollSpeedVal">1.5</span>
+                </div>
+                <div class="slider-row">
+                    <label>BULLET SPD</label>
+                    <input type="range" id="bulletSpeedSlider" min="3" max="15" step="0.5" value="7">
+                    <span class="slider-val" id="bulletSpeedVal">7</span>
+                </div>
             </div>
             <div class="start-btn" id="startBtn">PRESS SPACE OR TAP TO START</div>
             <div class="high-score" id="highScoreDisplay">HIGH SCORE: 0</div>
@@ -142,19 +215,31 @@
             PLAYER_HEIGHT: 40,
             BULLET_WIDTH: 4,
             BULLET_HEIGHT: 12,
-            BULLET_SPEED: 12,
+            BULLET_SPEED: 7,
             FUEL_DEPLETION_RATE: 0.15,
             FUEL_REFILL_RATE: 1.5,
             INITIAL_LIVES: 3,
             INVINCIBILITY_FRAMES: 120,
-            BASE_SCROLL_SPEED: 2,
-            MAX_SCROLL_SPEED: 6,
-            MIN_SCROLL_SPEED: 1,
+            BASE_SCROLL_SPEED: 1.5,
+            MAX_SCROLL_SPEED: 4,
+            MIN_SCROLL_SPEED: 0.5,
             RIVER_MIN_WIDTH: 120,
             RIVER_MAX_WIDTH: 280,
             DIFFICULTY_INCREASE_INTERVAL: 1000,
             ISLAND_INTERVAL: 15 // sections between islands
         };
+
+        // v3: Speed settings from localStorage
+        (function loadSpeedSettings() {
+            const savedScroll = localStorage.getItem('riverRaidScrollSpeed');
+            const savedBullet = localStorage.getItem('riverRaidBulletSpeed');
+            if (savedScroll !== null) CONFIG.BASE_SCROLL_SPEED = parseFloat(savedScroll);
+            if (savedBullet !== null) CONFIG.BULLET_SPEED = parseFloat(savedBullet);
+            // Scale max/min proportionally based on base
+            const ratio = CONFIG.BASE_SCROLL_SPEED / 1.5;
+            CONFIG.MAX_SCROLL_SPEED = 4 * ratio;
+            CONFIG.MIN_SCROLL_SPEED = Math.max(0.3, 0.5 * ratio);
+        })();
 
         // ==================== ATARI 2600 COLOR PALETTE (more saturated) ====================
         const COLORS = {
@@ -192,6 +277,136 @@
             FUEL_LOW: '#ff2222',
             WATER_SHIMMER: '#3366dd'
         };
+
+        // ==================== ATARI 2600 PIXEL SPRITE DATA ====================
+        // Each sprite is defined as a 2D array of color keys (null = transparent)
+        // Pixel size (px) = how many canvas pixels per Atari pixel
+
+        const PX = 2; // base pixel scale: each Atari pixel = 2 canvas pixels
+
+        // Player airplane: 16 wide x 20 tall Atari pixels, nose UP
+        // W = white fuselage, G = grey wing, C = cockpit white, D = dark wing, null = transparent
+        const SPRITE_PLAYER = [
+            // Row 0 (top - nose)
+            [null,null,null,null,null,null,null,'W','W',null,null,null,null,null,null,null],
+            [null,null,null,null,null,null,'W','W','W','W',null,null,null,null,null,null],
+            [null,null,null,null,null,null,'W','W','W','W',null,null,null,null,null,null],
+            [null,null,null,null,null,'W','W','W','W','W','W',null,null,null,null,null],
+            [null,null,null,null,null,'W','W','C','C','W','W',null,null,null,null,null],
+            [null,null,null,null,null,'W','W','C','C','W','W',null,null,null,null,null],
+            [null,null,null,null,'W','W','W','W','W','W','W','W',null,null,null,null],
+            [null,null,null,'D','D','W','W','W','W','W','W','D','D',null,null,null],
+            // Wings spread
+            [null,null,'D','D','D','W','W','W','W','W','W','D','D','D',null,null],
+            [null,'D','D','D','D','W','W','W','W','W','W','D','D','D','D',null],
+            ['D','D','D','D','D','W','W','W','W','W','W','D','D','D','D','D'],
+            ['G','G','D','D','D','W','W','W','W','W','W','D','D','D','G','G'],
+            [null,null,null,null,null,'W','W','W','W','W','W',null,null,null,null,null],
+            [null,null,null,null,null,'W','W','W','W','W','W',null,null,null,null,null],
+            [null,null,null,null,null,'W','W','W','W','W','W',null,null,null,null,null],
+            // Tail section
+            [null,null,null,null,'D','W','W','W','W','W','W','D',null,null,null,null],
+            [null,null,null,'D','D','W','W','W','W','W','W','D','D',null,null,null],
+            [null,null,'D','D','D','W','W','W','W','W','W','D','D','D',null,null],
+            [null,null,null,null,null,null,'W','W','W','W',null,null,null,null,null,null],
+            [null,null,null,null,null,null,'W','W','W','W',null,null,null,null,null,null],
+        ];
+
+        // Enemy jet: 16 wide x 20 tall, nose pointing DOWN
+        const SPRITE_JET = [
+            [null,null,null,null,null,null,'J','J','J','J',null,null,null,null,null,null],
+            [null,null,null,null,null,null,'J','J','J','J',null,null,null,null,null,null],
+            [null,null,'A','A','A','J','J','J','J','J','J','A','A','A',null,null],
+            [null,null,null,'A','A','J','J','J','J','J','J','A','A',null,null,null],
+            [null,null,null,null,'A','J','J','J','J','J','J','A',null,null,null,null],
+            [null,null,null,null,null,'J','J','J','J','J','J',null,null,null,null,null],
+            [null,null,null,null,null,'J','J','R','R','J','J',null,null,null,null,null],
+            [null,null,null,null,null,'J','J','J','J','J','J',null,null,null,null,null],
+            [null,null,null,null,'J','J','J','J','J','J','J','J',null,null,null,null],
+            [null,null,null,'A','A','J','J','J','J','J','J','A','A',null,null,null],
+            [null,null,'A','A','A','J','J','J','J','J','J','A','A','A',null,null],
+            [null,'A','A','A','A','J','J','J','J','J','J','A','A','A','A',null],
+            ['A','A','A','A','A','J','J','J','J','J','J','A','A','A','A','A'],
+            [null,null,null,null,null,'J','J','J','J','J','J',null,null,null,null,null],
+            [null,null,null,null,null,'J','J','J','J','J','J',null,null,null,null,null],
+            [null,null,null,null,null,'J','J','C','C','J','J',null,null,null,null,null],
+            [null,null,null,null,null,'J','J','C','C','J','J',null,null,null,null,null],
+            [null,null,null,null,null,null,'J','J','J','J',null,null,null,null,null,null],
+            [null,null,null,null,null,null,'J','J','J','J',null,null,null,null,null,null],
+            [null,null,null,null,null,null,null,'J','J',null,null,null,null,null,null,null],
+        ];
+
+        // Helicopter: 16 wide x 14 tall
+        const SPRITE_HELI = [
+            // Rotor drawn separately (animated)
+            [null,null,null,null,null,null,null,'R','R',null,null,null,null,null,null,null],
+            [null,null,null,null,null,null,null,'R','R',null,null,null,null,null,null,null],
+            [null,null,null,null,null,'R','R','R','R','R','R',null,null,null,null,null],
+            [null,null,null,null,'R','R','R','R','R','R','R','R',null,null,null,null],
+            [null,null,null,null,'R','R','W','W','W','R','R','R',null,null,null,null],
+            [null,null,null,null,'R','R','W','W','W','R','R','R',null,null,null,null],
+            [null,null,null,null,'R','R','R','R','R','R','R','R',null,null,null,null],
+            [null,null,null,null,'R','R','R','R','R','R','R','R',null,null,null,null],
+            [null,null,null,null,null,'R','R','R','R','R','R',null,null,null,null,null],
+            // Tail boom
+            [null,'R','R',null,null,null,'R','R','R','R',null,null,null,null,null,null],
+            ['R','R','R',null,null,null,null,'R','R',null,null,null,null,null,null,null],
+            // Skids
+            [null,null,null,'S','S','S','S','S','S','S','S','S','S',null,null,null],
+        ];
+
+        // Ship: 18 wide x 10 tall
+        const SPRITE_SHIP = [
+            [null,null,null,null,null,null,null,null,'B','B',null,null,null,null,null,null,null,null],
+            [null,null,null,null,null,null,null,'B','B','B','B',null,null,null,null,null,null,null],
+            [null,null,null,null,null,'B','B','B','B','B','B','B','B',null,null,null,null,null],
+            [null,null,null,null,'B','B','D','D','D','D','D','D','B','B',null,null,null,null],
+            [null,null,null,'B','B','D','D','D','D','D','D','D','D','B','B',null,null,null],
+            [null,null,'B','B','B','D','D','D','D','D','D','D','D','B','B','B',null,null],
+            [null,'B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B',null],
+            ['B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B'],
+            [null,'B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B',null],
+            [null,null,null,'B','B','B','B','B','B','B','B','B','B','B','B',null,null,null],
+        ];
+
+        // Fuel depot: 16 wide x 12 tall
+        const SPRITE_FUEL = [
+            ['M','M','M','M','M','M','M','M','M','M','M','M','M','M','M','M'],
+            ['M','P','P','P','P','P','P','P','P','P','P','P','P','P','P','M'],
+            ['M','P','M','M','P','P','P','P','P','P','P','P','M','M','P','M'],
+            ['M','P','M','P','P','P','P','P','P','P','P','P','P','M','P','M'],
+            ['M','P','M','P','P','W','W','P','W','P','W','P','P','M','P','M'],
+            ['M','P','M','P','P','W','P','P','W','P','W','P','P','M','P','M'],
+            ['M','P','M','P','P','W','W','P','W','P','W','P','P','M','P','M'],
+            ['M','P','M','P','P','W','P','P','W','P','W','P','P','M','P','M'],
+            ['M','P','M','P','P','W','P','P','W','W','W','P','P','M','P','M'],
+            ['M','P','M','M','P','P','P','P','P','P','P','P','M','M','P','M'],
+            ['M','P','P','P','P','P','P','P','P','P','P','P','P','P','P','M'],
+            ['M','M','M','M','M','M','M','M','M','M','M','M','M','M','M','M'],
+        ];
+
+        // Color maps for each sprite type
+        const PLAYER_COLORS = { 'W': '#e0e0e0', 'G': '#888888', 'C': '#ffffff', 'D': '#cc8800' };
+        const JET_COLORS = { 'J': '#888888', 'A': '#666666', 'C': '#aaaaaa', 'R': '#ff2222' };
+        const HELI_COLORS = { 'R': '#cc2222', 'W': '#ffffff', 'S': '#666666' };
+        const SHIP_COLORS = { 'B': '#996633', 'D': '#cc9955' };
+        const FUEL_COLORS = { 'M': '#cc22cc', 'P': '#ff44ff', 'W': '#ffffff' };
+
+        function drawPixelSprite(ctx, sprite, colorMap, x, y, pxSize) {
+            for (let row = 0; row < sprite.length; row++) {
+                for (let col = 0; col < sprite[row].length; col++) {
+                    const c = sprite[row][col];
+                    if (c && colorMap[c]) {
+                        ctx.fillStyle = colorMap[c];
+                        ctx.fillRect(
+                            Math.round(x + col * pxSize),
+                            Math.round(y + row * pxSize),
+                            pxSize, pxSize
+                        );
+                    }
+                }
+            }
+        }
 
         // ==================== AUDIO ENGINE ====================
         class AudioEngine {
@@ -348,7 +563,6 @@
                 noise.start();
             }
 
-            // v2: Distinct helicopter destroy sound (lower pitched boom)
             playHelicopterDestroy() {
                 if (!this.ctx) return;
                 const osc = this.ctx.createOscillator();
@@ -364,7 +578,6 @@
                 osc.stop(this.ctx.currentTime + 0.25);
             }
 
-            // v2: Distinct jet destroy sound (high-pitched whine + explosion)
             playJetDestroy() {
                 if (!this.ctx) return;
                 const osc = this.ctx.createOscillator();
@@ -380,11 +593,10 @@
                 osc.stop(this.ctx.currentTime + 0.2);
             }
 
-            // v2: Section completed fanfare
             playSectionComplete() {
                 if (!this.ctx) return;
                 const t = this.ctx.currentTime;
-                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+                const notes = [523.25, 659.25, 783.99, 1046.50];
                 notes.forEach((freq, i) => {
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
@@ -426,9 +638,9 @@
                 this.isGameOver = false;
                 this.invincibilityFrames = 0;
                 this.fuelWarningTimer = 0;
-                this.section = 1;          // v2: section counter
-                this.sectionFlash = 0;     // v2: flash timer for section complete
-                this.waterPhase = 0;       // v2: water animation phase
+                this.section = 1;
+                this.sectionFlash = 0;
+                this.waterPhase = 0;
             }
         }
 
@@ -449,7 +661,6 @@
             }
 
             update(keys, riverLeft, riverRight, touchInput) {
-                // Keyboard movement
                 if (keys['ArrowLeft'] || keys['KeyA']) {
                     this.x -= this.speed;
                 }
@@ -457,24 +668,20 @@
                     this.x += this.speed;
                 }
 
-                // v2: Touch movement
                 if (touchInput) {
                     if (touchInput.moveLeft) this.x -= this.speed;
                     if (touchInput.moveRight) this.x += this.speed;
                 }
 
-                // Clamp to river bounds with small margin
                 const margin = 5;
                 this.x = Math.max(riverLeft + margin, Math.min(riverRight - this.width - margin, this.x));
 
-                // Shooting
                 if (this.shootCooldown > 0) this.shootCooldown--;
                 if ((keys['Space'] || keys['KeyX'] || (touchInput && touchInput.shoot)) && this.shootCooldown === 0) {
                     this.shoot();
                     this.shootCooldown = 10;
                 }
 
-                // Update bullets
                 this.bullets = this.bullets.filter(b => {
                     b.y -= CONFIG.BULLET_SPEED;
                     return b.y > -CONFIG.BULLET_HEIGHT;
@@ -495,29 +702,8 @@
                 const alpha = invincible && Math.floor(Date.now() / 50) % 2 ? 0.3 : 1;
                 ctx.globalAlpha = alpha;
 
-                // Fuselage
-                ctx.fillStyle = COLORS.PLAYER;
-                ctx.fillRect(this.x + 10, this.y + 5, 12, 35);
-
-                // Wings
-                ctx.fillStyle = COLORS.PLAYER_WING;
-                ctx.fillRect(this.x, this.y + 20, 32, 8);
-
-                // Nose
-                ctx.fillStyle = COLORS.PLAYER;
-                ctx.beginPath();
-                ctx.moveTo(this.x + 16, this.y);
-                ctx.lineTo(this.x + 10, this.y + 8);
-                ctx.lineTo(this.x + 22, this.y + 8);
-                ctx.fill();
-
-                // Cockpit
-                ctx.fillStyle = COLORS.PLAYER_COCKPIT;
-                ctx.fillRect(this.x + 13, this.y + 10, 6, 8);
-
-                // Tail
-                ctx.fillStyle = COLORS.PLAYER_WING;
-                ctx.fillRect(this.x + 12, this.y + 35, 8, 5);
+                // v3: Atari 2600 pixel art player
+                drawPixelSprite(ctx, SPRITE_PLAYER, PLAYER_COLORS, this.x, this.y, PX);
 
                 ctx.globalAlpha = 1;
 
@@ -549,7 +735,7 @@
                 this.rightEdge = CONFIG.CANVAS_WIDTH - 100;
                 this.changeTimer = 0;
                 this.changeInterval = 50;
-                this.islands = [];        // v2: islands
+                this.islands = [];
                 this.islandSpawnCounter = 0;
             }
 
@@ -562,7 +748,6 @@
                 this.islands = [];
                 this.islandSpawnCounter = 0;
 
-                // Pre-generate segments to fill screen
                 for (let y = CONFIG.CANVAS_HEIGHT; y >= -this.segmentHeight; y -= this.segmentHeight) {
                     this.segments.push({
                         y: y,
@@ -573,13 +758,9 @@
             }
 
             update(scrollSpeed, difficulty, section) {
-                // Move all segments down
                 this.segments.forEach(s => s.y += scrollSpeed);
-
-                // Remove segments that are off screen
                 this.segments = this.segments.filter(s => s.y < CONFIG.CANVAS_HEIGHT + this.segmentHeight);
 
-                // Generate new segments at top
                 while (this.segments.length === 0 || this.segments[0].y > -this.segmentHeight) {
                     this.changeTimer++;
 
@@ -610,18 +791,16 @@
                     });
                 }
 
-                // v2: Update islands
                 this.islands.forEach(isl => {
                     isl.y += scrollSpeed;
                 });
                 this.islands = this.islands.filter(isl => isl.y < CONFIG.CANVAS_HEIGHT + 100);
             }
 
-            // v2: Spawn island in the middle of the river
             spawnIsland() {
                 const bounds = this.getRiverBoundsAtY(0);
                 const riverWidth = bounds.right - bounds.left;
-                if (riverWidth < 140) return; // too narrow for island
+                if (riverWidth < 140) return;
 
                 const islandWidth = Math.min(riverWidth * 0.35, 80);
                 const islandHeight = 200 + Math.random() * 150;
@@ -641,11 +820,9 @@
             }
 
             draw(ctx, waterPhase) {
-                // Draw banks and river
                 this.segments.forEach((seg, i) => {
                     const nextSeg = this.segments[i + 1] || seg;
 
-                    // Left bank
                     ctx.fillStyle = COLORS.BANK_LEFT;
                     ctx.beginPath();
                     ctx.moveTo(0, seg.y);
@@ -654,7 +831,6 @@
                     ctx.lineTo(0, seg.y + this.segmentHeight);
                     ctx.fill();
 
-                    // Right bank
                     ctx.fillStyle = COLORS.BANK_RIGHT;
                     ctx.beginPath();
                     ctx.moveTo(seg.right, seg.y);
@@ -663,7 +839,6 @@
                     ctx.lineTo(nextSeg.right, seg.y + this.segmentHeight);
                     ctx.fill();
 
-                    // v2: River water with animated shimmer
                     const waveOffset = Math.sin((seg.y + waterPhase) * 0.05) * 0.5 + 0.5;
                     const baseColor = (Math.floor((seg.y + waterPhase * 0.3) / 40) % 2 === 0);
                     ctx.fillStyle = baseColor ? COLORS.RIVER : COLORS.RIVER_DARK;
@@ -674,7 +849,6 @@
                     ctx.lineTo(nextSeg.left, seg.y + this.segmentHeight);
                     ctx.fill();
 
-                    // v2: Subtle water shimmer lines
                     if (Math.floor((seg.y + waterPhase) / 60) % 3 === 0) {
                         ctx.fillStyle = COLORS.WATER_SHIMMER;
                         const shimmerX = seg.left + (seg.right - seg.left) * (0.2 + waveOffset * 0.3);
@@ -682,11 +856,9 @@
                     }
                 });
 
-                // v2: Enhanced bank details (trees, rocks, stars/flowers)
                 for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 20) {
                     const seg = this.getSegmentAtY(y);
                     if (seg) {
-                        // Left side trees + varied details
                         for (let x = 8; x < seg.left - 8; x += 20) {
                             const hash = (x * 7 + y * 13) % 100;
                             if (hash < 30) {
@@ -696,7 +868,6 @@
                                 ctx.fillStyle = COLORS.BANK_DETAIL2;
                                 ctx.fillRect(x, y, 4, 4);
                             } else if (hash < 52) {
-                                // v2: little flowers/stars
                                 ctx.fillStyle = '#ffff44';
                                 ctx.fillRect(x + 1, y, 2, 2);
                             } else if (hash < 58) {
@@ -704,7 +875,6 @@
                                 ctx.fillRect(x, y + 2, 5, 3);
                             }
                         }
-                        // Right side
                         for (let x = seg.right + 8; x < CONFIG.CANVAS_WIDTH - 8; x += 20) {
                             const hash = (x * 11 + y * 17) % 100;
                             if (hash < 30) {
@@ -724,17 +894,13 @@
                     }
                 }
 
-                // v2: Draw islands
                 this.islands.forEach(isl => {
-                    // Island body
                     ctx.fillStyle = COLORS.ISLAND;
-                    // Rounded-ish island shape using rects
                     const taper = 6;
                     ctx.fillRect(isl.x + taper, isl.y, isl.width - taper * 2, isl.height);
                     ctx.fillRect(isl.x, isl.y + 15, isl.width, isl.height - 30);
                     ctx.fillRect(isl.x + taper / 2, isl.y + 5, isl.width - taper, isl.height - 10);
 
-                    // Island details (trees)
                     isl.treeOffsets.forEach(t => {
                         ctx.fillStyle = COLORS.ISLAND_DETAIL;
                         const tx = isl.x + t.dx * isl.width;
@@ -756,7 +922,6 @@
                 return { left: 100, right: CONFIG.CANVAS_WIDTH - 100 };
             }
 
-            // v2: Check if a point is inside an island
             isInsideIsland(x, y, width, height) {
                 for (const isl of this.islands) {
                     if (x + width > isl.x && x < isl.x + isl.width &&
@@ -774,7 +939,7 @@
                 this.enemies = [];
                 this.spawnTimer = 0;
                 this.bridgeSpawnTimer = 0;
-                this.jetSpawnTimer = 0; // v2
+                this.jetSpawnTimer = 0;
             }
 
             reset() {
@@ -789,11 +954,8 @@
                 this.bridgeSpawnTimer++;
                 this.jetSpawnTimer++;
 
-                // Spawn rate increases with difficulty
                 const spawnRate = Math.max(30, 80 - difficulty * 3);
                 const bridgeRate = Math.max(200, 400 - difficulty * 10);
-
-                // v2: Jets spawn with increasing frequency based on section
                 const jetRate = Math.max(60, 150 - section * 5);
 
                 if (this.spawnTimer >= spawnRate) {
@@ -806,21 +968,17 @@
                     this.spawnBridge(river);
                 }
 
-                // v2: Spawn jets after section 2
                 if (section >= 2 && this.jetSpawnTimer >= jetRate) {
                     this.jetSpawnTimer = 0;
                     this.spawnJet(river, difficulty, section);
                 }
 
-                // Update enemies
                 this.enemies.forEach(e => {
                     if (e.type === 'jet') {
-                        // v2: Jets fly TOWARD player (top to bottom) with zigzag
                         e.y += e.speed;
                         e.zigzagPhase += e.zigzagSpeed;
                         e.x += Math.sin(e.zigzagPhase) * e.zigzagAmplitude;
 
-                        // Clamp to river
                         const bounds = river.getRiverBoundsAtY(e.y);
                         e.x = Math.max(bounds.left + 5, Math.min(bounds.right - e.width - 5, e.x));
                     } else {
@@ -843,7 +1001,6 @@
                     }
                 });
 
-                // Remove off-screen enemies
                 this.enemies = this.enemies.filter(e => e.y < CONFIG.CANVAS_HEIGHT + 50 && e.y > -100);
             }
 
@@ -861,7 +1018,7 @@
 
                 switch (type) {
                     case 'helicopter':
-                        enemy.width = 28;
+                        enemy.width = 32;
                         enemy.height = 24;
                         enemy.x = bounds.left + 20 + Math.random() * (riverWidth - enemy.width - 40);
                         enemy.dx = (Math.random() > 0.5 ? 1 : -1) * (1 + difficulty * 0.2);
@@ -888,7 +1045,6 @@
                 this.enemies.push(enemy);
             }
 
-            // v2: Spawn enemy jet
             spawnJet(river, difficulty, section) {
                 const bounds = river.getRiverBoundsAtY(0);
                 const riverWidth = bounds.right - bounds.left;
@@ -897,11 +1053,11 @@
                     type: 'jet',
                     x: bounds.left + 20 + Math.random() * (riverWidth - 48),
                     y: -40,
-                    width: 24,
-                    height: 28,
+                    width: 32,
+                    height: 40,
                     health: 1,
                     points: 100,
-                    speed: 3 + Math.min(section * 0.3, 4), // gets faster with section
+                    speed: 3 + Math.min(section * 0.3, 4),
                     zigzagPhase: Math.random() * Math.PI * 2,
                     zigzagSpeed: 0.06 + Math.random() * 0.04,
                     zigzagAmplitude: 1.5 + Math.random() * 1.5,
@@ -946,43 +1102,27 @@
                 });
             }
 
+            // v3: Atari 2600 pixel art helicopter
             drawHelicopter(ctx, e) {
-                ctx.fillStyle = COLORS.HELICOPTER;
-                ctx.fillRect(e.x + 6, e.y + 8, 16, 14);
-                ctx.fillRect(e.x, e.y + 10, 8, 4);
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(e.x + 8, e.y + 10, 6, 6);
+                drawPixelSprite(ctx, SPRITE_HELI, HELI_COLORS, e.x, e.y, PX);
+
+                // Animated rotor blade on top
                 ctx.fillStyle = COLORS.HELICOPTER_BLADE;
-                ctx.save();
-                ctx.translate(e.x + 14, e.y + 6);
-                ctx.rotate(e.bladeAngle);
-                ctx.fillRect(-12, -2, 24, 4);
-                ctx.restore();
+                const rotorY = e.y;
+                const rotorCx = e.x + 15;
+                const bladeLen = 16;
+                const bx = Math.cos(e.bladeAngle) * bladeLen;
+                ctx.fillRect(rotorCx - Math.abs(bx), rotorY - 2, Math.abs(bx) * 2, 3);
             }
 
+            // v3: Atari 2600 pixel art ship
             drawShip(ctx, e) {
-                ctx.fillStyle = COLORS.SHIP;
-                ctx.beginPath();
-                ctx.moveTo(e.x + 4, e.y + e.height);
-                ctx.lineTo(e.x, e.y + 8);
-                ctx.lineTo(e.x + 6, e.y);
-                ctx.lineTo(e.x + e.width - 6, e.y);
-                ctx.lineTo(e.x + e.width, e.y + 8);
-                ctx.lineTo(e.x + e.width - 4, e.y + e.height);
-                ctx.fill();
-                ctx.fillStyle = COLORS.SHIP_DECK;
-                ctx.fillRect(e.x + 8, e.y + 4, e.width - 16, 8);
+                drawPixelSprite(ctx, SPRITE_SHIP, SHIP_COLORS, e.x, e.y, PX);
             }
 
+            // v3: Atari 2600 pixel art fuel depot
             drawFuelDepot(ctx, e) {
-                ctx.fillStyle = COLORS.FUEL_DEPOT;
-                ctx.fillRect(e.x, e.y + 8, e.width, 16);
-                ctx.fillStyle = COLORS.FUEL_TANK;
-                ctx.fillRect(e.x + 4, e.y, 10, 20);
-                ctx.fillRect(e.x + 18, e.y, 10, 20);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 10px Arial';
-                ctx.fillText('F', e.x + 13, e.y + 18);
+                drawPixelSprite(ctx, SPRITE_FUEL, FUEL_COLORS, e.x, e.y, PX);
             }
 
             drawBridge(ctx, e) {
@@ -1000,38 +1140,16 @@
                 }
             }
 
-            // v2: Draw enemy jet (facing downward toward player)
+            // v3: Atari 2600 pixel art enemy jet
             drawJet(ctx, e) {
                 e.flameFlicker = (e.flameFlicker + 1) % 4;
 
-                // Fuselage (grey)
-                ctx.fillStyle = COLORS.JET;
-                ctx.fillRect(e.x + 8, e.y + 4, 8, 20);
-
-                // Wings
-                ctx.fillStyle = COLORS.JET_WING;
-                ctx.fillRect(e.x, e.y + 10, 24, 6);
-
-                // Nose (pointing down)
-                ctx.fillStyle = COLORS.JET;
-                ctx.beginPath();
-                ctx.moveTo(e.x + 12, e.y + 28);
-                ctx.lineTo(e.x + 8, e.y + 22);
-                ctx.lineTo(e.x + 16, e.y + 22);
-                ctx.fill();
-
-                // Tail (top)
-                ctx.fillStyle = COLORS.JET_WING;
-                ctx.fillRect(e.x + 9, e.y, 6, 6);
+                drawPixelSprite(ctx, SPRITE_JET, JET_COLORS, e.x, e.y, PX);
 
                 // Engine flame (top, since flying down)
                 ctx.fillStyle = COLORS.JET_FLAME;
                 const flameH = 4 + (e.flameFlicker % 2) * 3;
-                ctx.fillRect(e.x + 10, e.y - flameH, 4, flameH);
-
-                // Red marking
-                ctx.fillStyle = '#ff2222';
-                ctx.fillRect(e.x + 10, e.y + 12, 4, 3);
+                ctx.fillRect(e.x + 14, e.y - flameH, 4, flameH);
             }
         }
 
@@ -1097,7 +1215,6 @@
                 this.shootTap = false;
                 this.touches = {};
 
-                // Detect touch device
                 this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
                 canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
@@ -1125,7 +1242,6 @@
                 }
                 this.updateFromTouches();
 
-                // Tap center = shoot
                 for (const touch of e.changedTouches) {
                     const pos = this.getCanvasPos(touch);
                     const cx = CONFIG.CANVAS_WIDTH / 2;
@@ -1169,17 +1285,14 @@
                 for (const id in this.touches) {
                     const pos = this.touches[id];
 
-                    // Left/right movement
                     if (pos.x < cx * 0.7) {
                         this.moveLeft = true;
                     } else if (pos.x > cx * 1.3) {
                         this.moveRight = true;
                     } else {
-                        // Center zone = shoot (held)
                         this.shoot = true;
                     }
 
-                    // Speed: top third = accelerate, bottom third = decelerate
                     if (pos.y < CONFIG.CANVAS_HEIGHT * 0.33) {
                         this.speedUp = true;
                     } else if (pos.y > CONFIG.CANVAS_HEIGHT * 0.67) {
@@ -1199,7 +1312,6 @@
                 };
             }
 
-            // v2: Draw semi-transparent touch controls overlay
             draw(ctx) {
                 if (!this.isTouchDevice) return;
 
@@ -1207,14 +1319,10 @@
                 const cx = CONFIG.CANVAS_WIDTH / 2;
                 const h = CONFIG.CANVAS_HEIGHT;
 
-                // Left zone
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 45, cx * 0.7, h - 45);
-
-                // Right zone
                 ctx.fillRect(cx * 1.3, 45, CONFIG.CANVAS_WIDTH - cx * 1.3, h - 45);
 
-                // Center fire zone
                 ctx.fillStyle = '#ff4444';
                 ctx.fillRect(cx * 0.7, h * 0.33, cx * 0.6, h * 0.34);
 
@@ -1223,15 +1331,11 @@
                 ctx.font = 'bold 18px Courier New';
                 ctx.textAlign = 'center';
 
-                // Left arrow
                 ctx.fillText('◄', cx * 0.35, h * 0.55);
-                // Right arrow
                 ctx.fillText('►', cx * 1.65, h * 0.55);
-                // Fire
                 ctx.fillStyle = '#ff6666';
                 ctx.fillText('FIRE', cx, h * 0.52);
 
-                // Speed indicators
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 14px Courier New';
                 ctx.fillText('▲ FAST', cx, h * 0.12);
@@ -1245,21 +1349,17 @@
         // ==================== HUD ====================
         class HUD {
             draw(ctx, state, highScore) {
-                // v2: Slightly taller HUD bar for section counter
                 ctx.fillStyle = COLORS.HUD_BG;
                 ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, 44);
 
-                // Score
                 ctx.fillStyle = COLORS.HUD_TEXT;
                 ctx.font = 'bold 14px Courier New';
                 ctx.fillText(`SCORE: ${state.score}`, 10, 16);
 
-                // High Score
                 ctx.fillStyle = '#888888';
                 ctx.font = '10px Courier New';
                 ctx.fillText(`HI: ${highScore}`, 10, 30);
 
-                // v2: Section counter
                 if (state.sectionFlash > 0) {
                     ctx.fillStyle = Math.floor(state.sectionFlash / 4) % 2 ? '#ffff44' : '#ff8800';
                 } else {
@@ -1270,7 +1370,6 @@
                 ctx.fillText(`SECTION ${state.section}`, CONFIG.CANVAS_WIDTH / 2, 38);
                 ctx.textAlign = 'left';
 
-                // Lives
                 ctx.fillStyle = COLORS.HUD_TEXT;
                 ctx.font = 'bold 14px Courier New';
                 ctx.fillText('LIVES:', CONFIG.CANVAS_WIDTH - 120, 20);
@@ -1283,7 +1382,6 @@
                     ctx.fill();
                 }
 
-                // Fuel gauge
                 const fuelWidth = 120;
                 const fuelHeight = 10;
                 const fuelX = CONFIG.CANVAS_WIDTH / 2 - fuelWidth / 2;
@@ -1305,7 +1403,6 @@
                 ctx.fillText('FUEL', CONFIG.CANVAS_WIDTH / 2, fuelY + 9);
                 ctx.textAlign = 'left';
 
-                // Lives indicator at bottom-right
                 ctx.fillStyle = '#888888';
                 ctx.font = '10px Courier New';
                 ctx.fillText(`SEC ${state.section} | DIFF ${state.difficulty}`, CONFIG.CANVAS_WIDTH - 140, 38);
@@ -1343,11 +1440,9 @@
         const finalScore = document.getElementById('finalScore');
         const newHighScore = document.getElementById('newHighScore');
 
-        // Set canvas size
         canvas.width = CONFIG.CANVAS_WIDTH;
         canvas.height = CONFIG.CANVAS_HEIGHT;
 
-        // Game objects
         const audio = new AudioEngine();
         const state = new GameState();
         const player = new Player();
@@ -1355,14 +1450,48 @@
         const enemies = new EnemyManager();
         const explosions = new ExplosionManager();
         const hud = new HUD();
-        const touchControls = new TouchControls(canvas); // v2
+        const touchControls = new TouchControls(canvas);
 
-        // Input
         const keys = {};
         let highScore = parseInt(localStorage.getItem('riverRaidHighScore') || '0');
-
-        // v2: Track last island spawn section
         let lastIslandSection = 0;
+
+        // v3: Speed settings sliders
+        const scrollSpeedSlider = document.getElementById('scrollSpeedSlider');
+        const bulletSpeedSlider = document.getElementById('bulletSpeedSlider');
+        const scrollSpeedVal = document.getElementById('scrollSpeedVal');
+        const bulletSpeedVal = document.getElementById('bulletSpeedVal');
+
+        // Load saved values into sliders
+        scrollSpeedSlider.value = CONFIG.BASE_SCROLL_SPEED;
+        bulletSpeedSlider.value = CONFIG.BULLET_SPEED;
+        scrollSpeedVal.textContent = CONFIG.BASE_SCROLL_SPEED;
+        bulletSpeedVal.textContent = CONFIG.BULLET_SPEED;
+
+        scrollSpeedSlider.addEventListener('input', () => {
+            const val = parseFloat(scrollSpeedSlider.value);
+            scrollSpeedVal.textContent = val.toFixed(1);
+            CONFIG.BASE_SCROLL_SPEED = val;
+            const ratio = val / 1.5;
+            CONFIG.MAX_SCROLL_SPEED = 4 * ratio;
+            CONFIG.MIN_SCROLL_SPEED = Math.max(0.3, 0.5 * ratio);
+            localStorage.setItem('riverRaidScrollSpeed', val);
+        });
+
+        bulletSpeedSlider.addEventListener('input', () => {
+            const val = parseFloat(bulletSpeedSlider.value);
+            bulletSpeedVal.textContent = val.toFixed(1);
+            CONFIG.BULLET_SPEED = val;
+            localStorage.setItem('riverRaidBulletSpeed', val);
+        });
+
+        // Prevent slider touch from starting game
+        document.querySelector('.settings-panel').addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: false });
+        document.querySelector('.settings-panel').addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
 
         // Event listeners
         document.addEventListener('keydown', (e) => {
@@ -1386,12 +1515,12 @@
             keys[e.code] = false;
         });
 
-        // Click/tap to start
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', restartGame);
 
-        // v2: Tap overlay to start/restart/unpause
         overlay.addEventListener('touchstart', (e) => {
+            // Don't start game if touching settings panel
+            if (e.target.closest('.settings-panel')) return;
             e.preventDefault();
             if (!state.isPlaying && !state.isPaused && !state.isGameOver) {
                 startGame();
@@ -1471,16 +1600,12 @@
         function update() {
             if (!state.isPlaying || state.isPaused) return;
 
-            // v2: Water animation phase
             state.waterPhase += state.scrollSpeed * 0.8;
 
-            // v2: Section flash countdown
             if (state.sectionFlash > 0) state.sectionFlash--;
 
-            // Get touch input
             const touchInput = touchControls.getInput();
 
-            // Speed control (keyboard)
             if (keys['ArrowUp'] || keys['KeyW'] || (touchInput && touchInput.speedUp)) {
                 state.scrollSpeed = Math.min(CONFIG.MAX_SCROLL_SPEED, state.scrollSpeed + 0.1);
             }
@@ -1488,15 +1613,12 @@
                 state.scrollSpeed = Math.max(CONFIG.MIN_SCROLL_SPEED, state.scrollSpeed - 0.1);
             }
 
-            // Update audio engine
             audio.updateEngineSpeed(state.scrollSpeed);
 
-            // Update distance and difficulty (v2: difficulty also uses section)
             state.distanceTraveled += state.scrollSpeed;
             const distDifficulty = 1 + Math.floor(state.distanceTraveled / CONFIG.DIFFICULTY_INCREASE_INTERVAL);
             state.difficulty = Math.max(distDifficulty, state.section);
 
-            // Fuel depletion
             state.fuel -= CONFIG.FUEL_DEPLETION_RATE * (state.scrollSpeed / CONFIG.BASE_SCROLL_SPEED);
             if (state.fuel <= 0) {
                 state.fuel = 0;
@@ -1504,7 +1626,6 @@
                 return;
             }
 
-            // Fuel warning
             if (state.fuel < 25) {
                 state.fuelWarningTimer++;
                 if (state.fuelWarningTimer >= 30) {
@@ -1513,27 +1634,22 @@
                 }
             }
 
-            // Update invincibility
             if (state.invincibilityFrames > 0) {
                 state.invincibilityFrames--;
             }
 
-            // Get river bounds at player position
             const riverBounds = river.getRiverBoundsAtY(player.y + player.height / 2);
 
-            // Update game objects
             river.update(state.scrollSpeed, state.difficulty, state.section);
             player.update(keys, riverBounds.left, riverBounds.right, touchInput);
             enemies.update(state.scrollSpeed, state.difficulty, river, state.section);
             explosions.update();
 
-            // v2: Spawn islands every ~15 sections
             if (state.section - lastIslandSection >= CONFIG.ISLAND_INTERVAL) {
                 river.spawnIsland();
                 lastIslandSection = state.section;
             }
 
-            // Collision: Player vs River banks
             if (state.invincibilityFrames === 0) {
                 const playerBounds = player.getBounds();
                 const topBounds = river.getRiverBoundsAtY(playerBounds.y);
@@ -1545,14 +1661,12 @@
                     return;
                 }
 
-                // v2: Collision with islands
                 if (river.isInsideIsland(playerBounds.x, playerBounds.y, playerBounds.width, playerBounds.height)) {
                     playerDeath();
                     return;
                 }
             }
 
-            // Collision: Player vs Enemies
             const playerBounds = player.getBounds();
             enemies.enemies.forEach(e => {
                 if (state.invincibilityFrames === 0) {
@@ -1576,7 +1690,6 @@
                 }
             });
 
-            // Collision: Bullets vs Enemies
             player.bullets.forEach(bullet => {
                 enemies.enemies.forEach(e => {
                     if (e.health > 0) {
@@ -1593,9 +1706,8 @@
                                     state.score += e.points;
                                     explosions.add(e.x + e.width / 2, e.y + e.height / 2, 2);
                                     audio.playBridgeDestroy();
-                                    // v2: Bridge destroyed = advance section
                                     state.section++;
-                                    state.sectionFlash = 60; // flash for 1 second
+                                    state.sectionFlash = 60;
                                     audio.playSectionComplete();
                                 }
                             }
@@ -1608,7 +1720,6 @@
                                 state.score += e.points;
                                 explosions.add(e.x + e.width / 2, e.y + e.height / 2);
 
-                                // v2: Different sounds for different enemy types
                                 if (e.type === 'jet') {
                                     audio.playJetDestroy();
                                 } else if (e.type === 'helicopter') {
@@ -1622,25 +1733,19 @@
                 });
             });
 
-            // Remove dead enemies
             enemies.enemies = enemies.enemies.filter(e => e.health > 0);
-
-            // Remove used bullets
             player.bullets = player.bullets.filter(b => b.y > -CONFIG.BULLET_HEIGHT);
         }
 
         function draw() {
-            // Clear
             ctx.fillStyle = COLORS.SKY;
             ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
 
-            // Draw game objects
             river.draw(ctx, state.waterPhase);
             enemies.draw(ctx);
             player.draw(ctx, state.invincibilityFrames > 0);
             explosions.draw(ctx);
 
-            // v2: Touch controls overlay (drawn before HUD)
             touchControls.draw(ctx);
 
             hud.draw(ctx, state, highScore);
@@ -1652,7 +1757,6 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Initialize
         highScoreDisplay.textContent = `HIGH SCORE: ${highScore}`;
         gameLoop();
     </script>
