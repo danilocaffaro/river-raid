@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>River Raid - Atari 2600 Clone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>River Raid v2 - Atari 2600 Clone</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +18,10 @@
             min-height: 100vh;
             overflow: hidden;
             font-family: 'Courier New', monospace;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #gameCanvas {
             border: 4px solid #444;
@@ -45,6 +49,12 @@
             text-shadow: 4px 4px #880000;
             margin-bottom: 20px;
             letter-spacing: 4px;
+        }
+        .version {
+            font-size: 14px;
+            color: #ff6600;
+            margin-top: -15px;
+            margin-bottom: 15px;
         }
         .subtitle {
             font-size: 18px;
@@ -97,6 +107,7 @@
     <div id="overlay">
         <div id="startScreen">
             <div class="title">RIVER RAID</div>
+            <div class="version">v2</div>
             <div class="subtitle">Atari 2600 Clone</div>
             <div class="instructions">
                 <span>← → or A D</span> : Move Left/Right<br>
@@ -104,20 +115,21 @@
                 <span>SPACE</span> : Shoot<br>
                 <span>P</span> : Pause<br><br>
                 Destroy enemies, refuel at depots<br>
-                Avoid riverbanks and bridges!
+                Avoid riverbanks and bridges!<br>
+                <span>Touch controls available on mobile</span>
             </div>
-            <div class="start-btn" id="startBtn">PRESS SPACE TO START</div>
+            <div class="start-btn" id="startBtn">PRESS SPACE OR TAP TO START</div>
             <div class="high-score" id="highScoreDisplay">HIGH SCORE: 0</div>
         </div>
         <div id="pauseScreen" class="hidden">
             <div class="pause-text">PAUSED</div>
-            <div class="instructions" style="margin-top: 20px;">Press P to resume</div>
+            <div class="instructions" style="margin-top: 20px;">Press P or tap to resume</div>
         </div>
         <div id="gameOverScreen" class="hidden">
             <div class="game-over-title">GAME OVER</div>
             <div class="final-score" id="finalScore">SCORE: 0</div>
             <div class="high-score" id="newHighScore" class="hidden">NEW HIGH SCORE!</div>
-            <div class="start-btn" id="restartBtn" style="margin-top: 20px;">PRESS SPACE TO RESTART</div>
+            <div class="start-btn" id="restartBtn" style="margin-top: 20px;">PRESS SPACE OR TAP TO RESTART</div>
         </div>
     </div>
 
@@ -140,35 +152,45 @@
             MIN_SCROLL_SPEED: 1,
             RIVER_MIN_WIDTH: 120,
             RIVER_MAX_WIDTH: 280,
-            DIFFICULTY_INCREASE_INTERVAL: 1000
+            DIFFICULTY_INCREASE_INTERVAL: 1000,
+            ISLAND_INTERVAL: 15 // sections between islands
         };
 
-        // ==================== ATARI COLOR PALETTE ====================
+        // ==================== ATARI 2600 COLOR PALETTE (more saturated) ====================
         const COLORS = {
             SKY: '#000000',
-            RIVER: '#0066cc',
-            RIVER_DARK: '#004488',
-            BANK_LEFT: '#228822',
-            BANK_RIGHT: '#116611',
-            BANK_DETAIL: '#33aa33',
+            RIVER: '#1a44aa',
+            RIVER_DARK: '#0c2878',
+            RIVER_LIGHT: '#2a5acc',
+            BANK_LEFT: '#1a8c1a',
+            BANK_RIGHT: '#0e6e0e',
+            BANK_DETAIL: '#2cb82c',
+            BANK_DETAIL2: '#44cc44',
+            BANK_ROCK: '#8a7040',
             PLAYER: '#ffcc00',
             PLAYER_WING: '#ff8800',
             PLAYER_COCKPIT: '#ffffff',
-            BULLET: '#ffff00',
-            HELICOPTER: '#cc0000',
-            HELICOPTER_BLADE: '#ff4444',
+            BULLET: '#ffff44',
+            HELICOPTER: '#cc2222',
+            HELICOPTER_BLADE: '#ff5555',
+            JET: '#888888',
+            JET_WING: '#aaaaaa',
+            JET_FLAME: '#ff4400',
             SHIP: '#884400',
             SHIP_DECK: '#aa6622',
-            FUEL_DEPOT: '#ff00ff',
-            FUEL_TANK: '#cc00cc',
-            BRIDGE: '#664422',
-            BRIDGE_DETAIL: '#442200',
-            EXPLOSION: ['#ffffff', '#ffff00', '#ff8800', '#ff4400', '#ff0000', '#880000'],
-            HUD_BG: '#222222',
+            FUEL_DEPOT: '#ff44ff',
+            FUEL_TANK: '#cc22cc',
+            BRIDGE: '#775533',
+            BRIDGE_DETAIL: '#553311',
+            ISLAND: '#1a8c1a',
+            ISLAND_DETAIL: '#2cb82c',
+            EXPLOSION: ['#ffffff', '#ffff44', '#ffaa00', '#ff4400', '#ff0000', '#880000'],
+            HUD_BG: '#1a1a2e',
             HUD_TEXT: '#ffffff',
-            FUEL_FULL: '#00ff00',
-            FUEL_MED: '#ffff00',
-            FUEL_LOW: '#ff0000'
+            FUEL_FULL: '#22ff22',
+            FUEL_MED: '#ffff22',
+            FUEL_LOW: '#ff2222',
+            WATER_SHIMMER: '#3366dd'
         };
 
         // ==================== AUDIO ENGINE ====================
@@ -216,7 +238,6 @@
                 osc.type = 'square';
                 osc.frequency.value = 880;
                 gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-                gain.gain.exponentialDecayTo = 0.01;
                 gain.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.03);
                 osc.connect(gain);
                 gain.connect(this.ctx.destination);
@@ -239,7 +260,6 @@
                 filter.type = 'lowpass';
                 filter.frequency.value = 400;
                 gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                gain.gain.exponentialDecayTo = 0.01;
                 gain.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.15);
                 noise.connect(filter);
                 filter.connect(gain);
@@ -328,6 +348,58 @@
                 noise.start();
             }
 
+            // v2: Distinct helicopter destroy sound (lower pitched boom)
+            playHelicopterDestroy() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            // v2: Distinct jet destroy sound (high-pitched whine + explosion)
+            playJetDestroy() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+
+            // v2: Section completed fanfare
+            playSectionComplete() {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0, t + i * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.15, t + i * 0.08 + 0.02);
+                    gain.gain.setTargetAtTime(0.001, t + i * 0.08 + 0.06, 0.03);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t + i * 0.08);
+                    osc.stop(t + i * 0.08 + 0.12);
+                });
+            }
+
             setMuted(muted) {
                 if (this.engineGain) {
                     this.engineGain.gain.value = muted ? 0 : 0.03;
@@ -354,6 +426,9 @@
                 this.isGameOver = false;
                 this.invincibilityFrames = 0;
                 this.fuelWarningTimer = 0;
+                this.section = 1;          // v2: section counter
+                this.sectionFlash = 0;     // v2: flash timer for section complete
+                this.waterPhase = 0;       // v2: water animation phase
             }
         }
 
@@ -373,13 +448,19 @@
                 this.shootCooldown = 0;
             }
 
-            update(keys, riverLeft, riverRight) {
-                // Movement
+            update(keys, riverLeft, riverRight, touchInput) {
+                // Keyboard movement
                 if (keys['ArrowLeft'] || keys['KeyA']) {
                     this.x -= this.speed;
                 }
                 if (keys['ArrowRight'] || keys['KeyD']) {
                     this.x += this.speed;
+                }
+
+                // v2: Touch movement
+                if (touchInput) {
+                    if (touchInput.moveLeft) this.x -= this.speed;
+                    if (touchInput.moveRight) this.x += this.speed;
                 }
 
                 // Clamp to river bounds with small margin
@@ -388,7 +469,7 @@
 
                 // Shooting
                 if (this.shootCooldown > 0) this.shootCooldown--;
-                if ((keys['Space'] || keys['KeyX']) && this.shootCooldown === 0) {
+                if ((keys['Space'] || keys['KeyX'] || (touchInput && touchInput.shoot)) && this.shootCooldown === 0) {
                     this.shoot();
                     this.shootCooldown = 10;
                 }
@@ -468,6 +549,8 @@
                 this.rightEdge = CONFIG.CANVAS_WIDTH - 100;
                 this.changeTimer = 0;
                 this.changeInterval = 50;
+                this.islands = [];        // v2: islands
+                this.islandSpawnCounter = 0;
             }
 
             reset() {
@@ -476,7 +559,9 @@
                 this.rightEdge = CONFIG.CANVAS_WIDTH - 100;
                 this.currentLeftTarget = 100;
                 this.currentRightTarget = CONFIG.CANVAS_WIDTH - 100;
-                
+                this.islands = [];
+                this.islandSpawnCounter = 0;
+
                 // Pre-generate segments to fill screen
                 for (let y = CONFIG.CANVAS_HEIGHT; y >= -this.segmentHeight; y -= this.segmentHeight) {
                     this.segments.push({
@@ -487,7 +572,7 @@
                 }
             }
 
-            update(scrollSpeed, difficulty) {
+            update(scrollSpeed, difficulty, section) {
                 // Move all segments down
                 this.segments.forEach(s => s.y += scrollSpeed);
 
@@ -497,26 +582,23 @@
                 // Generate new segments at top
                 while (this.segments.length === 0 || this.segments[0].y > -this.segmentHeight) {
                     this.changeTimer++;
-                    
-                    // Occasionally change river width/position
+
                     if (this.changeTimer >= this.changeInterval) {
                         this.changeTimer = 0;
                         this.changeInterval = 30 + Math.random() * 40;
-                        
+
                         const minWidth = Math.max(CONFIG.RIVER_MIN_WIDTH, CONFIG.RIVER_MIN_WIDTH + 50 - difficulty * 5);
                         const maxWidth = CONFIG.RIVER_MAX_WIDTH - difficulty * 3;
                         const targetWidth = minWidth + Math.random() * (maxWidth - minWidth);
-                        
+
                         const center = 100 + Math.random() * (CONFIG.CANVAS_WIDTH - 200);
                         this.currentLeftTarget = center - targetWidth / 2;
                         this.currentRightTarget = center + targetWidth / 2;
-                        
-                        // Clamp to screen
+
                         this.currentLeftTarget = Math.max(30, this.currentLeftTarget);
                         this.currentRightTarget = Math.min(CONFIG.CANVAS_WIDTH - 30, this.currentRightTarget);
                     }
 
-                    // Smooth transition
                     this.leftEdge += (this.currentLeftTarget - this.leftEdge) * 0.05;
                     this.rightEdge += (this.currentRightTarget - this.rightEdge) * 0.05;
 
@@ -527,10 +609,39 @@
                         right: this.rightEdge
                     });
                 }
+
+                // v2: Update islands
+                this.islands.forEach(isl => {
+                    isl.y += scrollSpeed;
+                });
+                this.islands = this.islands.filter(isl => isl.y < CONFIG.CANVAS_HEIGHT + 100);
             }
 
-            draw(ctx) {
-                // Draw banks (green areas on sides)
+            // v2: Spawn island in the middle of the river
+            spawnIsland() {
+                const bounds = this.getRiverBoundsAtY(0);
+                const riverWidth = bounds.right - bounds.left;
+                if (riverWidth < 140) return; // too narrow for island
+
+                const islandWidth = Math.min(riverWidth * 0.35, 80);
+                const islandHeight = 200 + Math.random() * 150;
+                const islandX = bounds.left + (riverWidth - islandWidth) / 2;
+
+                this.islands.push({
+                    x: islandX,
+                    y: -islandHeight,
+                    width: islandWidth,
+                    height: islandHeight,
+                    treeOffsets: Array.from({length: 8}, () => ({
+                        dx: Math.random() * 0.8 + 0.1,
+                        dy: Math.random() * 0.8 + 0.1,
+                        size: 4 + Math.random() * 6
+                    }))
+                });
+            }
+
+            draw(ctx, waterPhase) {
+                // Draw banks and river
                 this.segments.forEach((seg, i) => {
                     const nextSeg = this.segments[i + 1] || seg;
 
@@ -552,35 +663,85 @@
                     ctx.lineTo(nextSeg.right, seg.y + this.segmentHeight);
                     ctx.fill();
 
-                    // River water
-                    ctx.fillStyle = (Math.floor(seg.y / 40) % 2 === 0) ? COLORS.RIVER : COLORS.RIVER_DARK;
+                    // v2: River water with animated shimmer
+                    const waveOffset = Math.sin((seg.y + waterPhase) * 0.05) * 0.5 + 0.5;
+                    const baseColor = (Math.floor((seg.y + waterPhase * 0.3) / 40) % 2 === 0);
+                    ctx.fillStyle = baseColor ? COLORS.RIVER : COLORS.RIVER_DARK;
                     ctx.beginPath();
                     ctx.moveTo(seg.left, seg.y);
                     ctx.lineTo(seg.right, seg.y);
                     ctx.lineTo(nextSeg.right, seg.y + this.segmentHeight);
                     ctx.lineTo(nextSeg.left, seg.y + this.segmentHeight);
                     ctx.fill();
+
+                    // v2: Subtle water shimmer lines
+                    if (Math.floor((seg.y + waterPhase) / 60) % 3 === 0) {
+                        ctx.fillStyle = COLORS.WATER_SHIMMER;
+                        const shimmerX = seg.left + (seg.right - seg.left) * (0.2 + waveOffset * 0.3);
+                        ctx.fillRect(shimmerX, seg.y, 12 + waveOffset * 8, 2);
+                    }
                 });
 
-                // Bank details (trees/bushes)
-                ctx.fillStyle = COLORS.BANK_DETAIL;
-                for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 30) {
+                // v2: Enhanced bank details (trees, rocks, stars/flowers)
+                for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 20) {
                     const seg = this.getSegmentAtY(y);
                     if (seg) {
-                        // Left side trees
-                        for (let x = 10; x < seg.left - 10; x += 25) {
-                            if ((x + y) % 50 < 25) {
-                                ctx.fillRect(x, y, 8, 8);
+                        // Left side trees + varied details
+                        for (let x = 8; x < seg.left - 8; x += 20) {
+                            const hash = (x * 7 + y * 13) % 100;
+                            if (hash < 30) {
+                                ctx.fillStyle = COLORS.BANK_DETAIL;
+                                ctx.fillRect(x, y, 6, 6);
+                            } else if (hash < 45) {
+                                ctx.fillStyle = COLORS.BANK_DETAIL2;
+                                ctx.fillRect(x, y, 4, 4);
+                            } else if (hash < 52) {
+                                // v2: little flowers/stars
+                                ctx.fillStyle = '#ffff44';
+                                ctx.fillRect(x + 1, y, 2, 2);
+                            } else if (hash < 58) {
+                                ctx.fillStyle = COLORS.BANK_ROCK;
+                                ctx.fillRect(x, y + 2, 5, 3);
                             }
                         }
-                        // Right side trees
-                        for (let x = seg.right + 10; x < CONFIG.CANVAS_WIDTH - 10; x += 25) {
-                            if ((x + y) % 50 < 25) {
-                                ctx.fillRect(x, y, 8, 8);
+                        // Right side
+                        for (let x = seg.right + 8; x < CONFIG.CANVAS_WIDTH - 8; x += 20) {
+                            const hash = (x * 11 + y * 17) % 100;
+                            if (hash < 30) {
+                                ctx.fillStyle = COLORS.BANK_DETAIL;
+                                ctx.fillRect(x, y, 6, 6);
+                            } else if (hash < 45) {
+                                ctx.fillStyle = COLORS.BANK_DETAIL2;
+                                ctx.fillRect(x, y, 4, 4);
+                            } else if (hash < 52) {
+                                ctx.fillStyle = '#ff6688';
+                                ctx.fillRect(x + 1, y, 2, 2);
+                            } else if (hash < 58) {
+                                ctx.fillStyle = COLORS.BANK_ROCK;
+                                ctx.fillRect(x, y + 2, 5, 3);
                             }
                         }
                     }
                 }
+
+                // v2: Draw islands
+                this.islands.forEach(isl => {
+                    // Island body
+                    ctx.fillStyle = COLORS.ISLAND;
+                    // Rounded-ish island shape using rects
+                    const taper = 6;
+                    ctx.fillRect(isl.x + taper, isl.y, isl.width - taper * 2, isl.height);
+                    ctx.fillRect(isl.x, isl.y + 15, isl.width, isl.height - 30);
+                    ctx.fillRect(isl.x + taper / 2, isl.y + 5, isl.width - taper, isl.height - 10);
+
+                    // Island details (trees)
+                    isl.treeOffsets.forEach(t => {
+                        ctx.fillStyle = COLORS.ISLAND_DETAIL;
+                        const tx = isl.x + t.dx * isl.width;
+                        const ty = isl.y + t.dy * isl.height;
+                        ctx.fillRect(tx, ty, t.size, t.size);
+                    });
+                });
             }
 
             getSegmentAtY(y) {
@@ -594,6 +755,17 @@
                 }
                 return { left: 100, right: CONFIG.CANVAS_WIDTH - 100 };
             }
+
+            // v2: Check if a point is inside an island
+            isInsideIsland(x, y, width, height) {
+                for (const isl of this.islands) {
+                    if (x + width > isl.x && x < isl.x + isl.width &&
+                        y + height > isl.y && y < isl.y + isl.height) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         }
 
         // ==================== ENEMIES ====================
@@ -602,21 +774,27 @@
                 this.enemies = [];
                 this.spawnTimer = 0;
                 this.bridgeSpawnTimer = 0;
+                this.jetSpawnTimer = 0; // v2
             }
 
             reset() {
                 this.enemies = [];
                 this.spawnTimer = 0;
                 this.bridgeSpawnTimer = 0;
+                this.jetSpawnTimer = 0;
             }
 
-            update(scrollSpeed, difficulty, river) {
+            update(scrollSpeed, difficulty, river, section) {
                 this.spawnTimer++;
                 this.bridgeSpawnTimer++;
+                this.jetSpawnTimer++;
 
                 // Spawn rate increases with difficulty
                 const spawnRate = Math.max(30, 80 - difficulty * 3);
                 const bridgeRate = Math.max(200, 400 - difficulty * 10);
+
+                // v2: Jets spawn with increasing frequency based on section
+                const jetRate = Math.max(60, 150 - section * 5);
 
                 if (this.spawnTimer >= spawnRate) {
                     this.spawnTimer = 0;
@@ -628,28 +806,45 @@
                     this.spawnBridge(river);
                 }
 
+                // v2: Spawn jets after section 2
+                if (section >= 2 && this.jetSpawnTimer >= jetRate) {
+                    this.jetSpawnTimer = 0;
+                    this.spawnJet(river, difficulty, section);
+                }
+
                 // Update enemies
                 this.enemies.forEach(e => {
-                    e.y += scrollSpeed;
+                    if (e.type === 'jet') {
+                        // v2: Jets fly TOWARD player (top to bottom) with zigzag
+                        e.y += e.speed;
+                        e.zigzagPhase += e.zigzagSpeed;
+                        e.x += Math.sin(e.zigzagPhase) * e.zigzagAmplitude;
 
-                    if (e.type === 'helicopter') {
-                        e.x += e.dx;
+                        // Clamp to river
                         const bounds = river.getRiverBoundsAtY(e.y);
-                        if (e.x <= bounds.left + 10 || e.x >= bounds.right - e.width - 10) {
-                            e.dx *= -1;
-                        }
-                        e.bladeAngle = (e.bladeAngle + 0.3) % (Math.PI * 2);
-                    } else if (e.type === 'ship') {
-                        e.x += e.dx * 0.5;
-                        const bounds = river.getRiverBoundsAtY(e.y);
-                        if (e.x <= bounds.left + 10 || e.x >= bounds.right - e.width - 10) {
-                            e.dx *= -1;
+                        e.x = Math.max(bounds.left + 5, Math.min(bounds.right - e.width - 5, e.x));
+                    } else {
+                        e.y += scrollSpeed;
+
+                        if (e.type === 'helicopter') {
+                            e.x += e.dx;
+                            const bounds = river.getRiverBoundsAtY(e.y);
+                            if (e.x <= bounds.left + 10 || e.x >= bounds.right - e.width - 10) {
+                                e.dx *= -1;
+                            }
+                            e.bladeAngle = (e.bladeAngle + 0.3) % (Math.PI * 2);
+                        } else if (e.type === 'ship') {
+                            e.x += e.dx * 0.5;
+                            const bounds = river.getRiverBoundsAtY(e.y);
+                            if (e.x <= bounds.left + 10 || e.x >= bounds.right - e.width - 10) {
+                                e.dx *= -1;
+                            }
                         }
                     }
                 });
 
                 // Remove off-screen enemies
-                this.enemies = this.enemies.filter(e => e.y < CONFIG.CANVAS_HEIGHT + 50);
+                this.enemies = this.enemies.filter(e => e.y < CONFIG.CANVAS_HEIGHT + 50 && e.y > -100);
             }
 
             spawnEnemy(river, difficulty) {
@@ -693,6 +888,27 @@
                 this.enemies.push(enemy);
             }
 
+            // v2: Spawn enemy jet
+            spawnJet(river, difficulty, section) {
+                const bounds = river.getRiverBoundsAtY(0);
+                const riverWidth = bounds.right - bounds.left;
+
+                this.enemies.push({
+                    type: 'jet',
+                    x: bounds.left + 20 + Math.random() * (riverWidth - 48),
+                    y: -40,
+                    width: 24,
+                    height: 28,
+                    health: 1,
+                    points: 100,
+                    speed: 3 + Math.min(section * 0.3, 4), // gets faster with section
+                    zigzagPhase: Math.random() * Math.PI * 2,
+                    zigzagSpeed: 0.06 + Math.random() * 0.04,
+                    zigzagAmplitude: 1.5 + Math.random() * 1.5,
+                    flameFlicker: 0
+                });
+            }
+
             spawnBridge(river) {
                 const bounds = river.getRiverBoundsAtY(0);
                 this.enemies.push({
@@ -723,23 +939,19 @@
                         case 'bridge':
                             this.drawBridge(ctx, e);
                             break;
+                        case 'jet':
+                            this.drawJet(ctx, e);
+                            break;
                     }
                 });
             }
 
             drawHelicopter(ctx, e) {
-                // Body
                 ctx.fillStyle = COLORS.HELICOPTER;
                 ctx.fillRect(e.x + 6, e.y + 8, 16, 14);
-                
-                // Tail
                 ctx.fillRect(e.x, e.y + 10, 8, 4);
-                
-                // Cockpit
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(e.x + 8, e.y + 10, 6, 6);
-                
-                // Rotor
                 ctx.fillStyle = COLORS.HELICOPTER_BLADE;
                 ctx.save();
                 ctx.translate(e.x + 14, e.y + 6);
@@ -749,7 +961,6 @@
             }
 
             drawShip(ctx, e) {
-                // Hull
                 ctx.fillStyle = COLORS.SHIP;
                 ctx.beginPath();
                 ctx.moveTo(e.x + 4, e.y + e.height);
@@ -759,23 +970,16 @@
                 ctx.lineTo(e.x + e.width, e.y + 8);
                 ctx.lineTo(e.x + e.width - 4, e.y + e.height);
                 ctx.fill();
-                
-                // Deck
                 ctx.fillStyle = COLORS.SHIP_DECK;
                 ctx.fillRect(e.x + 8, e.y + 4, e.width - 16, 8);
             }
 
             drawFuelDepot(ctx, e) {
-                // Base
                 ctx.fillStyle = COLORS.FUEL_DEPOT;
                 ctx.fillRect(e.x, e.y + 8, e.width, 16);
-                
-                // Tanks
                 ctx.fillStyle = COLORS.FUEL_TANK;
                 ctx.fillRect(e.x + 4, e.y, 10, 20);
                 ctx.fillRect(e.x + 18, e.y, 10, 20);
-                
-                // F label
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 10px Arial';
                 ctx.fillText('F', e.x + 13, e.y + 18);
@@ -783,14 +987,8 @@
 
             drawBridge(ctx, e) {
                 ctx.fillStyle = COLORS.BRIDGE;
-                
-                // Left section
                 ctx.fillRect(e.x, e.y, e.gapLeft - e.x, e.height);
-                
-                // Right section
                 ctx.fillRect(e.gapRight, e.y, e.x + e.width - e.gapRight, e.height);
-                
-                // Bridge details
                 ctx.fillStyle = COLORS.BRIDGE_DETAIL;
                 for (let x = e.x; x < e.gapLeft; x += 12) {
                     ctx.fillRect(x, e.y + 4, 6, 4);
@@ -800,6 +998,40 @@
                     ctx.fillRect(x, e.y + 4, 6, 4);
                     ctx.fillRect(x, e.y + 16, 6, 4);
                 }
+            }
+
+            // v2: Draw enemy jet (facing downward toward player)
+            drawJet(ctx, e) {
+                e.flameFlicker = (e.flameFlicker + 1) % 4;
+
+                // Fuselage (grey)
+                ctx.fillStyle = COLORS.JET;
+                ctx.fillRect(e.x + 8, e.y + 4, 8, 20);
+
+                // Wings
+                ctx.fillStyle = COLORS.JET_WING;
+                ctx.fillRect(e.x, e.y + 10, 24, 6);
+
+                // Nose (pointing down)
+                ctx.fillStyle = COLORS.JET;
+                ctx.beginPath();
+                ctx.moveTo(e.x + 12, e.y + 28);
+                ctx.lineTo(e.x + 8, e.y + 22);
+                ctx.lineTo(e.x + 16, e.y + 22);
+                ctx.fill();
+
+                // Tail (top)
+                ctx.fillStyle = COLORS.JET_WING;
+                ctx.fillRect(e.x + 9, e.y, 6, 6);
+
+                // Engine flame (top, since flying down)
+                ctx.fillStyle = COLORS.JET_FLAME;
+                const flameH = 4 + (e.flameFlicker % 2) * 3;
+                ctx.fillRect(e.x + 10, e.y - flameH, 4, flameH);
+
+                // Red marking
+                ctx.fillStyle = '#ff2222';
+                ctx.fillRect(e.x + 10, e.y + 12, 4, 3);
             }
         }
 
@@ -833,15 +1065,13 @@
                     const progress = e.frame / e.maxFrames;
                     const colorIndex = Math.floor(progress * COLORS.EXPLOSION.length);
                     const radius = (1 - progress) * 25 * e.size;
-                    
+
                     ctx.fillStyle = COLORS.EXPLOSION[Math.min(colorIndex, COLORS.EXPLOSION.length - 1)];
-                    
-                    // Main explosion
+
                     ctx.beginPath();
                     ctx.arc(e.x, e.y, radius, 0, Math.PI * 2);
                     ctx.fill();
-                    
-                    // Particles
+
                     for (let i = 0; i < 6; i++) {
                         const angle = (i / 6) * Math.PI * 2 + progress * 2;
                         const dist = progress * 30 * e.size;
@@ -854,41 +1084,210 @@
             }
         }
 
+        // ==================== TOUCH CONTROLS (v2) ====================
+        class TouchControls {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.active = false;
+                this.moveLeft = false;
+                this.moveRight = false;
+                this.speedUp = false;
+                this.speedDown = false;
+                this.shoot = false;
+                this.shootTap = false;
+                this.touches = {};
+
+                // Detect touch device
+                this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+                canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
+                canvas.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
+                canvas.addEventListener('touchend', (e) => this.onTouchEnd(e), { passive: false });
+                canvas.addEventListener('touchcancel', (e) => this.onTouchEnd(e), { passive: false });
+            }
+
+            getCanvasPos(touch) {
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = CONFIG.CANVAS_WIDTH / rect.width;
+                const scaleY = CONFIG.CANVAS_HEIGHT / rect.height;
+                return {
+                    x: (touch.clientX - rect.left) * scaleX,
+                    y: (touch.clientY - rect.top) * scaleY
+                };
+            }
+
+            onTouchStart(e) {
+                e.preventDefault();
+                this.active = true;
+                for (const touch of e.changedTouches) {
+                    const pos = this.getCanvasPos(touch);
+                    this.touches[touch.identifier] = pos;
+                }
+                this.updateFromTouches();
+
+                // Tap center = shoot
+                for (const touch of e.changedTouches) {
+                    const pos = this.getCanvasPos(touch);
+                    const cx = CONFIG.CANVAS_WIDTH / 2;
+                    if (Math.abs(pos.x - cx) < CONFIG.CANVAS_WIDTH * 0.15 &&
+                        pos.y > CONFIG.CANVAS_HEIGHT * 0.2 && pos.y < CONFIG.CANVAS_HEIGHT * 0.8) {
+                        this.shootTap = true;
+                    }
+                }
+            }
+
+            onTouchMove(e) {
+                e.preventDefault();
+                for (const touch of e.changedTouches) {
+                    const pos = this.getCanvasPos(touch);
+                    this.touches[touch.identifier] = pos;
+                }
+                this.updateFromTouches();
+            }
+
+            onTouchEnd(e) {
+                e.preventDefault();
+                for (const touch of e.changedTouches) {
+                    delete this.touches[touch.identifier];
+                }
+                this.updateFromTouches();
+                if (Object.keys(this.touches).length === 0) {
+                    this.active = false;
+                }
+            }
+
+            updateFromTouches() {
+                this.moveLeft = false;
+                this.moveRight = false;
+                this.speedUp = false;
+                this.speedDown = false;
+                this.shoot = this.shootTap;
+                this.shootTap = false;
+
+                const cx = CONFIG.CANVAS_WIDTH / 2;
+
+                for (const id in this.touches) {
+                    const pos = this.touches[id];
+
+                    // Left/right movement
+                    if (pos.x < cx * 0.7) {
+                        this.moveLeft = true;
+                    } else if (pos.x > cx * 1.3) {
+                        this.moveRight = true;
+                    } else {
+                        // Center zone = shoot (held)
+                        this.shoot = true;
+                    }
+
+                    // Speed: top third = accelerate, bottom third = decelerate
+                    if (pos.y < CONFIG.CANVAS_HEIGHT * 0.33) {
+                        this.speedUp = true;
+                    } else if (pos.y > CONFIG.CANVAS_HEIGHT * 0.67) {
+                        this.speedDown = true;
+                    }
+                }
+            }
+
+            getInput() {
+                if (!this.active) return null;
+                return {
+                    moveLeft: this.moveLeft,
+                    moveRight: this.moveRight,
+                    speedUp: this.speedUp,
+                    speedDown: this.speedDown,
+                    shoot: this.shoot
+                };
+            }
+
+            // v2: Draw semi-transparent touch controls overlay
+            draw(ctx) {
+                if (!this.isTouchDevice) return;
+
+                ctx.globalAlpha = 0.12;
+                const cx = CONFIG.CANVAS_WIDTH / 2;
+                const h = CONFIG.CANVAS_HEIGHT;
+
+                // Left zone
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 45, cx * 0.7, h - 45);
+
+                // Right zone
+                ctx.fillRect(cx * 1.3, 45, CONFIG.CANVAS_WIDTH - cx * 1.3, h - 45);
+
+                // Center fire zone
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(cx * 0.7, h * 0.33, cx * 0.6, h * 0.34);
+
+                ctx.globalAlpha = 0.35;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px Courier New';
+                ctx.textAlign = 'center';
+
+                // Left arrow
+                ctx.fillText('◄', cx * 0.35, h * 0.55);
+                // Right arrow
+                ctx.fillText('►', cx * 1.65, h * 0.55);
+                // Fire
+                ctx.fillStyle = '#ff6666';
+                ctx.fillText('FIRE', cx, h * 0.52);
+
+                // Speed indicators
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px Courier New';
+                ctx.fillText('▲ FAST', cx, h * 0.12);
+                ctx.fillText('▼ SLOW', cx, h * 0.92);
+
+                ctx.textAlign = 'left';
+                ctx.globalAlpha = 1;
+            }
+        }
+
         // ==================== HUD ====================
         class HUD {
             draw(ctx, state, highScore) {
-                // Background bar
+                // v2: Slightly taller HUD bar for section counter
                 ctx.fillStyle = COLORS.HUD_BG;
-                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, 40);
+                ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, 44);
 
                 // Score
                 ctx.fillStyle = COLORS.HUD_TEXT;
-                ctx.font = 'bold 16px Courier New';
-                ctx.fillText(`SCORE: ${state.score}`, 10, 26);
+                ctx.font = 'bold 14px Courier New';
+                ctx.fillText(`SCORE: ${state.score}`, 10, 16);
 
                 // High Score
                 ctx.fillStyle = '#888888';
-                ctx.font = '12px Courier New';
-                ctx.fillText(`HI: ${highScore}`, 140, 26);
+                ctx.font = '10px Courier New';
+                ctx.fillText(`HI: ${highScore}`, 10, 30);
+
+                // v2: Section counter
+                if (state.sectionFlash > 0) {
+                    ctx.fillStyle = Math.floor(state.sectionFlash / 4) % 2 ? '#ffff44' : '#ff8800';
+                } else {
+                    ctx.fillStyle = '#44ddff';
+                }
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(`SECTION ${state.section}`, CONFIG.CANVAS_WIDTH / 2, 38);
+                ctx.textAlign = 'left';
 
                 // Lives
                 ctx.fillStyle = COLORS.HUD_TEXT;
-                ctx.font = 'bold 16px Courier New';
-                ctx.fillText('LIVES:', CONFIG.CANVAS_WIDTH - 120, 26);
+                ctx.font = 'bold 14px Courier New';
+                ctx.fillText('LIVES:', CONFIG.CANVAS_WIDTH - 120, 20);
                 for (let i = 0; i < state.lives; i++) {
                     ctx.fillStyle = COLORS.PLAYER;
                     ctx.beginPath();
-                    ctx.moveTo(CONFIG.CANVAS_WIDTH - 60 + i * 20, 15);
-                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 66 + i * 20, 28);
-                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 54 + i * 20, 28);
+                    ctx.moveTo(CONFIG.CANVAS_WIDTH - 60 + i * 20, 10);
+                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 66 + i * 20, 24);
+                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 54 + i * 20, 24);
                     ctx.fill();
                 }
 
                 // Fuel gauge
-                const fuelWidth = 150;
-                const fuelHeight = 12;
+                const fuelWidth = 120;
+                const fuelHeight = 10;
                 const fuelX = CONFIG.CANVAS_WIDTH / 2 - fuelWidth / 2;
-                const fuelY = 14;
+                const fuelY = 8;
 
                 ctx.fillStyle = '#333333';
                 ctx.fillRect(fuelX - 2, fuelY - 2, fuelWidth + 4, fuelHeight + 4);
@@ -901,8 +1300,15 @@
                 ctx.fillRect(fuelX, fuelY, (state.fuel / 100) * fuelWidth, fuelHeight);
 
                 ctx.fillStyle = COLORS.HUD_TEXT;
+                ctx.font = '9px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('FUEL', CONFIG.CANVAS_WIDTH / 2, fuelY + 9);
+                ctx.textAlign = 'left';
+
+                // Lives indicator at bottom-right
+                ctx.fillStyle = '#888888';
                 ctx.font = '10px Courier New';
-                ctx.fillText('FUEL', fuelX + fuelWidth / 2 - 14, fuelY + 10);
+                ctx.fillText(`SEC ${state.section} | DIFF ${state.difficulty}`, CONFIG.CANVAS_WIDTH - 140, 38);
             }
         }
 
@@ -916,12 +1322,8 @@
 
         function checkBridgeCollision(player, bridge) {
             const playerBounds = player.getBounds();
-            
-            // Check if player Y overlaps with bridge
             if (playerBounds.y < bridge.y + bridge.height &&
                 playerBounds.y + playerBounds.height > bridge.y) {
-                
-                // Check if player is in the gap
                 const playerCenterX = playerBounds.x + playerBounds.width / 2;
                 if (playerCenterX < bridge.gapLeft || playerCenterX > bridge.gapRight) {
                     return true;
@@ -953,15 +1355,19 @@
         const enemies = new EnemyManager();
         const explosions = new ExplosionManager();
         const hud = new HUD();
+        const touchControls = new TouchControls(canvas); // v2
 
         // Input
         const keys = {};
         let highScore = parseInt(localStorage.getItem('riverRaidHighScore') || '0');
 
+        // v2: Track last island spawn section
+        let lastIslandSection = 0;
+
         // Event listeners
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            
+
             if (e.code === 'Space') {
                 e.preventDefault();
                 if (!state.isPlaying && !state.isPaused) {
@@ -970,7 +1376,7 @@
                     restartGame();
                 }
             }
-            
+
             if (e.code === 'KeyP' && state.isPlaying) {
                 togglePause();
             }
@@ -980,9 +1386,21 @@
             keys[e.code] = false;
         });
 
-        // Click to start
+        // Click/tap to start
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+        // v2: Tap overlay to start/restart/unpause
+        overlay.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!state.isPlaying && !state.isPaused && !state.isGameOver) {
+                startGame();
+            } else if (state.isGameOver) {
+                restartGame();
+            } else if (state.isPaused) {
+                togglePause();
+            }
+        }, { passive: false });
 
         function startGame() {
             audio.init();
@@ -991,6 +1409,7 @@
             river.reset();
             enemies.reset();
             explosions.reset();
+            lastIslandSection = 0;
             state.isPlaying = true;
             overlay.classList.add('hidden');
             highScoreDisplay.textContent = `HIGH SCORE: ${highScore}`;
@@ -1018,7 +1437,7 @@
         function gameOver() {
             state.isPlaying = false;
             state.isGameOver = true;
-            
+
             if (state.score > highScore) {
                 highScore = state.score;
                 localStorage.setItem('riverRaidHighScore', highScore);
@@ -1026,7 +1445,7 @@
             } else {
                 newHighScore.classList.add('hidden');
             }
-            
+
             finalScore.textContent = `SCORE: ${state.score}`;
             overlay.classList.remove('hidden');
             startScreen.classList.add('hidden');
@@ -1039,7 +1458,7 @@
             audio.playDeath();
             explosions.add(player.x + player.width / 2, player.y + player.height / 2, 1.5);
             state.lives--;
-            
+
             if (state.lives <= 0) {
                 gameOver();
             } else {
@@ -1052,20 +1471,30 @@
         function update() {
             if (!state.isPlaying || state.isPaused) return;
 
-            // Speed control
-            if (keys['ArrowUp'] || keys['KeyW']) {
+            // v2: Water animation phase
+            state.waterPhase += state.scrollSpeed * 0.8;
+
+            // v2: Section flash countdown
+            if (state.sectionFlash > 0) state.sectionFlash--;
+
+            // Get touch input
+            const touchInput = touchControls.getInput();
+
+            // Speed control (keyboard)
+            if (keys['ArrowUp'] || keys['KeyW'] || (touchInput && touchInput.speedUp)) {
                 state.scrollSpeed = Math.min(CONFIG.MAX_SCROLL_SPEED, state.scrollSpeed + 0.1);
             }
-            if (keys['ArrowDown'] || keys['KeyS']) {
+            if (keys['ArrowDown'] || keys['KeyS'] || (touchInput && touchInput.speedDown)) {
                 state.scrollSpeed = Math.max(CONFIG.MIN_SCROLL_SPEED, state.scrollSpeed - 0.1);
             }
 
             // Update audio engine
             audio.updateEngineSpeed(state.scrollSpeed);
 
-            // Update distance and difficulty
+            // Update distance and difficulty (v2: difficulty also uses section)
             state.distanceTraveled += state.scrollSpeed;
-            state.difficulty = 1 + Math.floor(state.distanceTraveled / CONFIG.DIFFICULTY_INCREASE_INTERVAL);
+            const distDifficulty = 1 + Math.floor(state.distanceTraveled / CONFIG.DIFFICULTY_INCREASE_INTERVAL);
+            state.difficulty = Math.max(distDifficulty, state.section);
 
             // Fuel depletion
             state.fuel -= CONFIG.FUEL_DEPLETION_RATE * (state.scrollSpeed / CONFIG.BASE_SCROLL_SPEED);
@@ -1093,10 +1522,16 @@
             const riverBounds = river.getRiverBoundsAtY(player.y + player.height / 2);
 
             // Update game objects
-            river.update(state.scrollSpeed, state.difficulty);
-            player.update(keys, riverBounds.left, riverBounds.right);
-            enemies.update(state.scrollSpeed, state.difficulty, river);
+            river.update(state.scrollSpeed, state.difficulty, state.section);
+            player.update(keys, riverBounds.left, riverBounds.right, touchInput);
+            enemies.update(state.scrollSpeed, state.difficulty, river, state.section);
             explosions.update();
+
+            // v2: Spawn islands every ~15 sections
+            if (state.section - lastIslandSection >= CONFIG.ISLAND_INTERVAL) {
+                river.spawnIsland();
+                lastIslandSection = state.section;
+            }
 
             // Collision: Player vs River banks
             if (state.invincibilityFrames === 0) {
@@ -1106,6 +1541,12 @@
 
                 if (playerBounds.x < topBounds.left || playerBounds.x + playerBounds.width > topBounds.right ||
                     playerBounds.x < bottomBounds.left || playerBounds.x + playerBounds.width > bottomBounds.right) {
+                    playerDeath();
+                    return;
+                }
+
+                // v2: Collision with islands
+                if (river.isInsideIsland(playerBounds.x, playerBounds.y, playerBounds.width, playerBounds.height)) {
                     playerDeath();
                     return;
                 }
@@ -1122,7 +1563,6 @@
                         }
                     } else if (checkCollision(playerBounds, e)) {
                         if (e.isFuel) {
-                            // Refuel!
                             state.fuel = Math.min(100, state.fuel + 30);
                             audio.playRefuel();
                             state.score += e.points;
@@ -1140,36 +1580,39 @@
             player.bullets.forEach(bullet => {
                 enemies.enemies.forEach(e => {
                     if (e.health > 0) {
-                        let hitBox = { x: e.x, y: e.y, width: e.width, height: e.height };
-                        
                         if (e.type === 'bridge') {
-                            // Check bullet vs bridge sections (not the gap)
                             const leftSection = { x: e.x, y: e.y, width: e.gapLeft - e.x, height: e.height };
                             const rightSection = { x: e.gapRight, y: e.y, width: e.x + e.width - e.gapRight, height: e.height };
-                            
+
                             if (checkCollision(bullet, leftSection) || checkCollision(bullet, rightSection)) {
                                 e.health--;
-                                bullet.y = -100; // Remove bullet
+                                bullet.y = -100;
                                 audio.playEnemyHit();
-                                
+
                                 if (e.health <= 0) {
                                     state.score += e.points;
                                     explosions.add(e.x + e.width / 2, e.y + e.height / 2, 2);
                                     audio.playBridgeDestroy();
+                                    // v2: Bridge destroyed = advance section
+                                    state.section++;
+                                    state.sectionFlash = 60; // flash for 1 second
+                                    audio.playSectionComplete();
                                 }
                             }
-                        } else if (checkCollision(bullet, hitBox)) {
+                        } else if (checkCollision(bullet, { x: e.x, y: e.y, width: e.width, height: e.height })) {
                             e.health--;
-                            bullet.y = -100; // Remove bullet
+                            bullet.y = -100;
                             audio.playEnemyHit();
-                            
+
                             if (e.health <= 0) {
                                 state.score += e.points;
                                 explosions.add(e.x + e.width / 2, e.y + e.height / 2);
-                                
-                                if (e.isFuel) {
-                                    // Destroying fuel depot gives points but no fuel
-                                    audio.playExplosion();
+
+                                // v2: Different sounds for different enemy types
+                                if (e.type === 'jet') {
+                                    audio.playJetDestroy();
+                                } else if (e.type === 'helicopter') {
+                                    audio.playHelicopterDestroy();
                                 } else {
                                     audio.playExplosion();
                                 }
@@ -1192,10 +1635,14 @@
             ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
 
             // Draw game objects
-            river.draw(ctx);
+            river.draw(ctx, state.waterPhase);
             enemies.draw(ctx);
             player.draw(ctx, state.invincibilityFrames > 0);
             explosions.draw(ctx);
+
+            // v2: Touch controls overlay (drawn before HUD)
+            touchControls.draw(ctx);
+
             hud.draw(ctx, state, highScore);
         }
 
