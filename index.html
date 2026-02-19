@@ -211,8 +211,8 @@
         const CONFIG = {
             CANVAS_WIDTH: 480,
             CANVAS_HEIGHT: 640,
-            PLAYER_WIDTH: 24,
-            PLAYER_HEIGHT: 30,
+            PLAYER_WIDTH: 27,
+            PLAYER_HEIGHT: 21,
             BULLET_WIDTH: 4,
             BULLET_HEIGHT: 12,
             BULLET_SPEED: 7,
@@ -241,41 +241,41 @@
             CONFIG.MIN_SCROLL_SPEED = Math.max(0.3, 0.5 * ratio);
         })();
 
-        // ==================== ATARI 2600 COLOR PALETTE (authentic) ====================
+        // ==================== ATARI 2600 COLOR PALETTE (pixel-accurate from gameplay) ====================
         const COLORS = {
             SKY: '#000000',
-            RIVER: '#2038ec',       // Atari blue
-            RIVER_DARK: '#0c2078',
-            RIVER_LIGHT: '#3050fc',
-            BANK_LEFT: '#2a7e2a',   // Atari green
-            BANK_RIGHT: '#1e6e1e',
-            BANK_DETAIL: '#3eae3e',
-            BANK_DETAIL2: '#50c850',
+            RIVER: '#5d6ae8',       // Atari periwinkle blue (from actual gameplay)
+            RIVER_DARK: '#4050c8',
+            RIVER_LIGHT: '#7080f0',
+            BANK_LEFT: '#7da354',   // Medium olive green (from gameplay)
+            BANK_RIGHT: '#6e8e2d',  // Darker olive
+            BANK_DETAIL: '#8fb862',
+            BANK_DETAIL2: '#9dc870',
             BANK_ROCK: '#8a7040',
-            PLAYER: '#ffd400',      // Atari yellow/gold (authentic)
-            PLAYER_WING: '#d4a800',
-            PLAYER_COCKPIT: '#ffffff',
-            BULLET: '#ffd400',
-            HELICOPTER: '#2e8b57',  // Atari green helicopter (authentic!)
-            HELICOPTER_BLADE: '#50c850',
+            PLAYER: '#f3d44d',      // Warm yellow (pixel-sampled from gameplay)
+            PLAYER_WING: '#d4b030',
+            PLAYER_COCKPIT: '#0c0c0c',  // Black cockpit detail (authentic!)
+            BULLET: '#f3d44d',      // Same yellow as player
+            HELICOPTER: '#0f2d67',  // Dark navy/blue (actual gameplay color!)
+            HELICOPTER_BLADE: '#f5d04a', // Yellow rotor blade
             JET: '#b0b0b0',        // Light gray
             JET_WING: '#909090',
             JET_FLAME: '#ff4400',
-            SHIP: '#6b4c3b',       // Dark brown hull
-            SHIP_DECK: '#c2a060',  // Tan deck
-            FUEL_DEPOT: '#d42aff', // Magenta/purple (authentic fuel color)
-            FUEL_TANK: '#aa22cc',
-            BRIDGE: '#c2a060',     // Tan bridge (authentic)
-            BRIDGE_DETAIL: '#8a6e3a',
-            ISLAND: '#2a7e2a',
-            ISLAND_DETAIL: '#3eae3e',
+            SHIP: '#c84e3b',       // Red/brick hull (from gameplay!)
+            SHIP_DECK: '#0a0a0a',  // Black deck/superstructure
+            FUEL_DEPOT: '#ff8cc9', // Bright pink/magenta (from gameplay)
+            FUEL_TANK: '#c67bdd',  // Light purple
+            BRIDGE: '#a0581f',     // Brown planks (from gameplay)
+            BRIDGE_DETAIL: '#6b2f00', // Dark brown plank detail
+            ISLAND: '#7da354',
+            ISLAND_DETAIL: '#8fb862',
             EXPLOSION: ['#ffffff', '#ffff44', '#ffaa00', '#ff4400', '#ff0000', '#880000'],
-            HUD_BG: '#1a1a2e',
-            HUD_TEXT: '#ffffff',
+            HUD_BG: '#cfcfcf',     // Light gray HUD (from gameplay)
+            HUD_TEXT: '#f1d95f',    // Warm yellow text (from gameplay)
             FUEL_FULL: '#22ff22',
             FUEL_MED: '#ffff22',
             FUEL_LOW: '#ff2222',
-            WATER_SHIMMER: '#3050fc'
+            WATER_SHIMMER: '#7080f0'
         };
 
         // ==================== ATARI 2600 AUTHENTIC PIXEL SPRITE DATA ====================
@@ -285,74 +285,63 @@
 
         const PX = 3; // base pixel scale (larger for smaller authentic sprites)
 
-        // Player airplane: 8 wide x 10 tall — yellow/gold, compact, swept wings, pointed nose (authentic)
+        // Player airplane: 9 wide x 7 tall — yellow diamond shape, black cockpit, pointed nose (pixel-accurate)
         const SPRITE_PLAYER = [
-            [null,null,null,'Y','Y',null,null,null],
-            [null,null,null,'Y','Y',null,null,null],
-            [null,null,'Y','Y','Y','Y',null,null],
-            [null,null,'Y','W','W','Y',null,null],
-            [null,'Y','Y','Y','Y','Y','Y',null],
-            ['D','Y','Y','Y','Y','Y','Y','D'],
-            ['D','D','Y','Y','Y','Y','D','D'],
-            [null,null,null,'Y','Y',null,null,null],
-            [null,null,'D','Y','Y','D',null,null],
-            [null,'D','D','Y','Y','D','D',null],
+            [null,null,null,null,'Y',null,null,null,null],  // tail fin (1px)
+            [null,null,null,'Y','Y','Y',null,null,null],    // upper fuselage
+            [null,null,'Y','Y','Y','Y','Y',null,null],      // wing root
+            ['Y','Y','Y','Y','K','Y','Y','Y','Y'],          // main wings + cockpit (K=black)
+            [null,null,'Y','Y','Y','Y','Y',null,null],      // trailing edge
+            [null,null,null,'Y','Y','Y',null,null,null],    // taper to nose
+            [null,null,null,null,'Y',null,null,null,null],  // nose tip (1px)
         ];
 
-        // Enemy jet: 8 wide x 10 tall — gray/silver, nose pointing DOWN (authentic)
+        // Enemy jet: 9 wide x 7 tall — same shape as player but gray, pointing DOWN
         const SPRITE_JET = [
-            [null,null,null,'J','J',null,null,null],
-            [null,null,'J','J','J','J',null,null],
-            [null,'A','J','J','J','J','A',null],
-            ['A','A','J','J','J','J','A','A'],
-            ['A','A','J','C','C','J','A','A'],
-            [null,null,'J','J','J','J',null,null],
-            [null,null,'J','J','J','J',null,null],
-            [null,'A','A','J','J','A','A',null],
-            [null,null,null,'J','J',null,null,null],
-            [null,null,null,'R','R',null,null,null],
+            [null,null,null,null,'J',null,null,null,null],  // nose tip
+            [null,null,null,'J','J','J',null,null,null],    // nose taper
+            [null,null,'J','J','J','J','J',null,null],      // leading edge
+            ['A','A','J','J','C','J','J','A','A'],          // main wings + cockpit highlight
+            [null,null,'J','J','J','J','J',null,null],      // wing root
+            [null,null,null,'J','J','J',null,null,null],    // upper fuselage
+            [null,null,null,null,'J',null,null,null,null],  // tail
         ];
 
-        // Helicopter: 10 wide x 8 tall — GREEN body (authentic!), white cockpit window
+        // Helicopter: 7 wide x 4 tall — dark navy blue body, yellow rotor, white window (pixel-accurate!)
         const SPRITE_HELI = [
-            [null,null,null,null,'G','G',null,null,null,null],
-            [null,null,null,'G','G','G','G',null,null,null],
-            [null,null,'G','G','G','G','G','G',null,null],
-            [null,null,'G','G','W','W','G','G',null,null],
-            [null,null,'G','G','G','G','G','G',null,null],
-            [null,null,'G','G','G','G','G','G',null,null],
-            ['G','G',null,'G','G','G','G',null,null,null],
-            [null,null,'S','S','S','S','S','S',null,null],
+            [null,null,'R','R',null,null,null],             // yellow rotor (2px)
+            [null,null,'B','B','B',null,null],              // top body
+            [null,'K','B','W','B','K',null],                // body + white window + black tail
+            [null,null,'B','B','B',null,null],              // bottom body / skids
         ];
 
-        // Ship: 12 wide x 6 tall — brown hull, tan deck (authentic)
+        // Ship/tanker: 9 wide x 3 tall — black deck, red hull, green shadow (pixel-accurate!)
         const SPRITE_SHIP = [
-            [null,null,null,null,null,'B','B',null,null,null,null,null],
-            [null,null,null,'B','B','D','D','B','B',null,null,null],
-            [null,null,'B','B','D','D','D','D','B','B',null,null],
-            [null,'B','B','D','D','D','D','D','D','B','B',null],
-            ['B','B','B','B','B','B','B','B','B','B','B','B'],
-            [null,'B','B','B','B','B','B','B','B','B','B',null],
+            [null,null,null,'K','K','K',null,null,null],    // black deck/superstructure
+            [null,null,'R','R','R','R','R',null,null],      // red hull
+            [null,null,'V','V','V','V','V',null,null],      // green underside shadow
         ];
 
-        // Fuel depot: 8 wide x 8 tall — magenta/purple with "F" letter (authentic!)
+        // Fuel depot: 5 wide x 10 tall — pink/magenta bg, vertical "FUEL" text (pixel-accurate!)
         const SPRITE_FUEL = [
-            ['M','M','M','M','M','M','M','M'],
-            ['M','P','P','P','P','P','P','M'],
-            ['M','P','W','W','W','P','P','M'],
-            ['M','P','W','P','P','P','P','M'],
-            ['M','P','W','W','W','P','P','M'],
-            ['M','P','W','P','P','P','P','M'],
-            ['M','P','W','P','P','P','P','M'],
-            ['M','M','M','M','M','M','M','M'],
+            ['P','P','P','P','P'],
+            ['P','M','M','M','P'],  // F
+            ['P','M','P','P','P'],
+            ['P','M','M','P','P'],  // U
+            ['P','M','P','M','P'],
+            ['P','M','M','M','P'],  // E
+            ['P','M','P','P','P'],
+            ['P','M','M','P','P'],  // L
+            ['P','M','P','M','P'],
+            ['P','P','P','P','P'],
         ];
 
-        // Color maps for each sprite type (authentic Atari 2600 palette)
-        const PLAYER_COLORS = { 'Y': '#ffd400', 'W': '#ffffff', 'D': '#d4a800' };
-        const JET_COLORS = { 'J': '#b0b0b0', 'A': '#808080', 'C': '#d0d0d0', 'R': '#ff2222' };
-        const HELI_COLORS = { 'G': '#2e8b57', 'W': '#ffffff', 'S': '#555555' };
-        const SHIP_COLORS = { 'B': '#6b4c3b', 'D': '#c2a060' };
-        const FUEL_COLORS = { 'M': '#aa22cc', 'P': '#d42aff', 'W': '#ffffff' };
+        // Color maps for each sprite type (pixel-sampled from actual gameplay)
+        const PLAYER_COLORS = { 'Y': '#f3d44d', 'K': '#0c0c0c' };
+        const JET_COLORS = { 'J': '#888888', 'A': '#666666', 'C': '#aaaaaa' };
+        const HELI_COLORS = { 'B': '#0f2d67', 'R': '#f5d04a', 'W': '#ffffff', 'K': '#050505' };
+        const SHIP_COLORS = { 'K': '#0a0a0a', 'R': '#c84e3b', 'V': '#6e8e2d' };
+        const FUEL_COLORS = { 'P': '#ff8cc9', 'M': '#1e2a8e' };
 
         function drawPixelSprite(ctx, sprite, colorMap, x, y, pxSize) {
             for (let row = 0; row < sprite.length; row++) {
@@ -980,23 +969,23 @@
 
                 switch (type) {
                     case 'helicopter':
-                        enemy.width = 30;
-                        enemy.height = 24;
+                        enemy.width = 21;
+                        enemy.height = 12;
                         enemy.x = bounds.left + 20 + Math.random() * (riverWidth - enemy.width - 40);
                         enemy.dx = (Math.random() > 0.5 ? 1 : -1) * (1 + difficulty * 0.2);
                         enemy.bladeAngle = 0;
                         enemy.points = 60;
                         break;
                     case 'ship':
-                        enemy.width = 36;
-                        enemy.height = 18;
+                        enemy.width = 27;
+                        enemy.height = 9;
                         enemy.x = bounds.left + 20 + Math.random() * (riverWidth - enemy.width - 40);
                         enemy.dx = (Math.random() > 0.5 ? 1 : -1) * 0.8;
                         enemy.points = 30;
                         break;
                     case 'fuel':
-                        enemy.width = 24;
-                        enemy.height = 24;
+                        enemy.width = 15;
+                        enemy.height = 30;
                         enemy.x = bounds.left + 20 + Math.random() * (riverWidth - enemy.width - 40);
                         enemy.dx = 0;
                         enemy.points = 80;
@@ -1015,8 +1004,8 @@
                     type: 'jet',
                     x: bounds.left + 20 + Math.random() * (riverWidth - 48),
                     y: -40,
-                    width: 24,
-                    height: 30,
+                    width: 27,
+                    height: 21,
                     health: 1,
                     points: 100,
                     speed: 3 + Math.min(section * 0.3, 4),
@@ -1068,13 +1057,13 @@
             drawHelicopter(ctx, e) {
                 drawPixelSprite(ctx, SPRITE_HELI, HELI_COLORS, e.x, e.y, PX);
 
-                // Animated rotor blade on top
+                // Animated rotor blade extending from the yellow rotor pixels
                 ctx.fillStyle = COLORS.HELICOPTER_BLADE;
-                const rotorY = e.y;
-                const rotorCx = e.x + 15;
-                const bladeLen = 14;
+                const rotorY = e.y + 1;
+                const rotorCx = e.x + 8;
+                const bladeLen = 12;
                 const bx = Math.cos(e.bladeAngle) * bladeLen;
-                ctx.fillRect(rotorCx - Math.abs(bx), rotorY - 2, Math.abs(bx) * 2, 2);
+                ctx.fillRect(rotorCx - Math.abs(bx), rotorY, Math.abs(bx) * 2, 2);
             }
 
             // v3: Atari 2600 pixel art ship
@@ -1088,18 +1077,25 @@
             }
 
             drawBridge(ctx, e) {
+                // Brown plank bridge with yellow center road lines (authentic)
                 ctx.fillStyle = COLORS.BRIDGE;
                 ctx.fillRect(e.x, e.y, e.gapLeft - e.x, e.height);
                 ctx.fillRect(e.gapRight, e.y, e.x + e.width - e.gapRight, e.height);
+                // Dark brown plank lines
                 ctx.fillStyle = COLORS.BRIDGE_DETAIL;
-                for (let x = e.x; x < e.gapLeft; x += 12) {
-                    ctx.fillRect(x, e.y + 4, 6, 4);
-                    ctx.fillRect(x, e.y + 16, 6, 4);
+                for (let x = e.x; x < e.gapLeft; x += 8) {
+                    ctx.fillRect(x, e.y + 2, 4, 2);
+                    ctx.fillRect(x + 2, e.y + e.height - 4, 4, 2);
                 }
-                for (let x = e.gapRight; x < e.x + e.width; x += 12) {
-                    ctx.fillRect(x, e.y + 4, 6, 4);
-                    ctx.fillRect(x, e.y + 16, 6, 4);
+                for (let x = e.gapRight; x < e.x + e.width; x += 8) {
+                    ctx.fillRect(x, e.y + 2, 4, 2);
+                    ctx.fillRect(x + 2, e.y + e.height - 4, 4, 2);
                 }
+                // Yellow center road line
+                ctx.fillStyle = '#f2db4d';
+                const midY = e.y + Math.floor(e.height / 2) - 1;
+                ctx.fillRect(e.x, midY, e.gapLeft - e.x, 2);
+                ctx.fillRect(e.gapRight, midY, e.x + e.width - e.gapRight, 2);
             }
 
             // v3: Atari 2600 pixel art enemy jet
@@ -1108,10 +1104,10 @@
 
                 drawPixelSprite(ctx, SPRITE_JET, JET_COLORS, e.x, e.y, PX);
 
-                // Engine flame (bottom, since nose pointing down)
+                // Engine flame below tail
                 ctx.fillStyle = COLORS.JET_FLAME;
                 const flameH = 3 + (e.flameFlicker % 2) * 2;
-                ctx.fillRect(e.x + 9, e.y + 30, 6, flameH);
+                ctx.fillRect(e.x + 12, e.y + 21, 3, flameH);
             }
         }
 
@@ -1318,7 +1314,7 @@
                 ctx.font = 'bold 14px Courier New';
                 ctx.fillText(`SCORE: ${state.score}`, 10, 16);
 
-                ctx.fillStyle = '#888888';
+                ctx.fillStyle = '#555555';
                 ctx.font = '10px Courier New';
                 ctx.fillText(`HI: ${highScore}`, 10, 30);
 
@@ -1349,7 +1345,7 @@
                 const fuelX = CONFIG.CANVAS_WIDTH / 2 - fuelWidth / 2;
                 const fuelY = 8;
 
-                ctx.fillStyle = '#333333';
+                ctx.fillStyle = '#000000';
                 ctx.fillRect(fuelX - 2, fuelY - 2, fuelWidth + 4, fuelHeight + 4);
 
                 let fuelColor = COLORS.FUEL_FULL;
@@ -1365,7 +1361,7 @@
                 ctx.fillText('FUEL', CONFIG.CANVAS_WIDTH / 2, fuelY + 9);
                 ctx.textAlign = 'left';
 
-                ctx.fillStyle = '#888888';
+                ctx.fillStyle = '#555555';
                 ctx.font = '10px Courier New';
                 ctx.fillText(`SEC ${state.section} | DIFF ${state.difficulty}`, CONFIG.CANVAS_WIDTH - 140, 38);
             }
