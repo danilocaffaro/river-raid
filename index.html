@@ -27,6 +27,9 @@
             border: 4px solid #444;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale;
+            font-smooth: never;
         }
         #overlay {
             position: absolute;
@@ -241,41 +244,41 @@
             CONFIG.MIN_SCROLL_SPEED = Math.max(0.3, 0.5 * ratio);
         })();
 
-        // ==================== ATARI 2600 COLOR PALETTE (pixel-accurate from gameplay) ====================
+        // ==================== ATARI 2600 TIA COLOR PALETTE (flat, authentic) ====================
         const COLORS = {
             SKY: '#000000',
-            RIVER: '#5d6ae8',       // Atari periwinkle blue (from actual gameplay)
-            RIVER_DARK: '#4050c8',
-            RIVER_LIGHT: '#7080f0',
-            BANK_LEFT: '#7da354',   // Medium olive green (from gameplay)
-            BANK_RIGHT: '#6e8e2d',  // Darker olive
-            BANK_DETAIL: '#8fb862',
-            BANK_DETAIL2: '#9dc870',
-            BANK_ROCK: '#8a7040',
-            PLAYER: '#f3d44d',      // Warm yellow (pixel-sampled from gameplay)
-            PLAYER_WING: '#d4b030',
-            PLAYER_COCKPIT: '#0c0c0c',  // Black cockpit detail (authentic!)
-            BULLET: '#f3d44d',      // Same yellow as player
-            HELICOPTER: '#0f2d67',  // Dark navy/blue (actual gameplay color!)
-            HELICOPTER_BLADE: '#f5d04a', // Yellow rotor blade
-            JET: '#b0b0b0',        // Light gray
-            JET_WING: '#909090',
-            JET_FLAME: '#ff4400',
-            SHIP: '#c84e3b',       // Red/brick hull (from gameplay!)
-            SHIP_DECK: '#0a0a0a',  // Black deck/superstructure
-            FUEL_DEPOT: '#ff8cc9', // Bright pink/magenta (from gameplay)
-            FUEL_TANK: '#c67bdd',  // Light purple
-            BRIDGE: '#a0581f',     // Brown planks (from gameplay)
-            BRIDGE_DETAIL: '#6b2f00', // Dark brown plank detail
-            ISLAND: '#7da354',
-            ISLAND_DETAIL: '#8fb862',
-            EXPLOSION: ['#ffffff', '#ffff44', '#ffaa00', '#ff4400', '#ff0000', '#880000'],
-            HUD_BG: '#cfcfcf',     // Light gray HUD (from gameplay)
-            HUD_TEXT: '#f1d95f',    // Warm yellow text (from gameplay)
-            FUEL_FULL: '#22ff22',
-            FUEL_MED: '#ffff22',
-            FUEL_LOW: '#ff2222',
-            WATER_SHIMMER: '#7080f0'
+            RIVER: '#4858d8',       // TIA periwinkle blue (flatter)
+            RIVER_DARK: '#3040a8',
+            RIVER_LIGHT: '#5868e0',
+            BANK_LEFT: '#689040',   // TIA olive green (less bright)
+            BANK_RIGHT: '#587028',  // Darker olive
+            BANK_DETAIL: '#789850',
+            BANK_DETAIL2: '#889858',
+            BANK_ROCK: '#786030',
+            PLAYER: '#d8c838',      // TIA yellow (warmer, flatter)
+            PLAYER_WING: '#c0a828',
+            PLAYER_COCKPIT: '#080808',
+            BULLET: '#d8c838',
+            HELICOPTER: '#0c2858',  // TIA dark navy (flatter)
+            HELICOPTER_BLADE: '#d8c838',
+            JET: '#989898',         // TIA gray (flatter)
+            JET_WING: '#787878',
+            JET_FLAME: '#e83800',
+            SHIP: '#b03828',        // TIA red/brick (less saturated)
+            SHIP_DECK: '#080808',
+            FUEL_DEPOT: '#e878b8', // TIA pink/magenta (less bright)
+            FUEL_TANK: '#b868c8',
+            BRIDGE: '#904818',     // TIA brown (flatter)
+            BRIDGE_DETAIL: '#582800',
+            ISLAND: '#689040',
+            ISLAND_DETAIL: '#789850',
+            EXPLOSION: ['#f8f8f8', '#e8e840', '#e89800', '#e83800', '#d81800', '#780000'],
+            HUD_BG: '#b8b8b8',     // TIA light gray (flatter)
+            HUD_TEXT: '#d8c838',   // TIA yellow text
+            FUEL_FULL: '#18d818',
+            FUEL_MED: '#d8d818',
+            FUEL_LOW: '#d81818',
+            WATER_SHIMMER: '#5868e0'
         };
 
         // ==================== ATARI 2600 AUTHENTIC PIXEL SPRITE DATA ====================
@@ -338,12 +341,12 @@
             ['P','P','P','P','P'],
         ];
 
-        // Color maps for each sprite type (pixel-sampled from actual gameplay)
-        const PLAYER_COLORS = { 'W': '#e8e8e8', 'G': '#a0a0a0' }; // white/gray jet (authentic)
-        const JET_COLORS = { 'J': '#888888', 'A': '#666666', 'C': '#aaaaaa' };
-        const HELI_COLORS = { 'B': '#0f2d67', 'R': '#f5d04a', 'W': '#ffffff', 'K': '#050505' };
-        const SHIP_COLORS = { 'K': '#0a0a0a', 'R': '#c84e3b', 'V': '#6e8e2d' };
-        const FUEL_COLORS = { 'P': '#ff8cc9', 'M': '#1e2a8e' };
+        // TIA color maps for each sprite type (flat, authentic Atari 2600)
+        const PLAYER_COLORS = { 'W': '#d8d8d8', 'G': '#888888' }; // TIA white/gray jet
+        const JET_COLORS = { 'J': '#787878', 'A': '#585858', 'C': '#989898' }; // TIA grays
+        const HELI_COLORS = { 'B': '#0c2858', 'R': '#d8c838', 'W': '#f8f8f8', 'K': '#000000' }; // TIA navy/yellow
+        const SHIP_COLORS = { 'K': '#080808', 'R': '#b03828', 'V': '#587028' }; // TIA black/red/green
+        const FUEL_COLORS = { 'P': '#e878b8', 'M': '#182878' }; // TIA pink/navy
 
         function drawPixelSprite(ctx, sprite, colorMap, x, y, pxSize) {
             for (let row = 0; row < sprite.length; row++) {
@@ -1316,6 +1319,9 @@
         // ==================== HUD ====================
         class HUD {
             draw(ctx, state, highScore) {
+                // Disable text anti-aliasing for pixel-perfect TIA fonts
+                ctx.imageSmoothingEnabled = false;
+                
                 ctx.fillStyle = COLORS.HUD_BG;
                 ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, 44);
 
