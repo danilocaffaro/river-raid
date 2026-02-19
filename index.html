@@ -211,8 +211,8 @@
         const CONFIG = {
             CANVAS_WIDTH: 480,
             CANVAS_HEIGHT: 640,
-            PLAYER_WIDTH: 27,
-            PLAYER_HEIGHT: 21,
+            PLAYER_WIDTH: 15,  // 5px sprite * 3 scale
+            PLAYER_HEIGHT: 27, // 9px sprite * 3 scale
             BULLET_WIDTH: 4,
             BULLET_HEIGHT: 12,
             BULLET_SPEED: 7,
@@ -285,15 +285,17 @@
 
         const PX = 3; // base pixel scale (larger for smaller authentic sprites)
 
-        // Player airplane: 9 wide x 7 tall — yellow diamond shape, black cockpit, pointed nose (pixel-accurate)
+        // Player airplane: 5 wide x 9 tall — white/gray jet pointing UP (Atari 2600 authentic)
         const SPRITE_PLAYER = [
-            [null,null,null,null,'Y',null,null,null,null],  // tail fin (1px)
-            [null,null,null,'Y','Y','Y',null,null,null],    // upper fuselage
-            [null,null,'Y','Y','Y','Y','Y',null,null],      // wing root
-            ['Y','Y','Y','Y','K','Y','Y','Y','Y'],          // main wings + cockpit (K=black)
-            [null,null,'Y','Y','Y','Y','Y',null,null],      // trailing edge
-            [null,null,null,'Y','Y','Y',null,null,null],    // taper to nose
-            [null,null,null,null,'Y',null,null,null,null],  // nose tip (1px)
+            [null,null,'W',null,null],        // nose tip (1px white)
+            [null,'W','W','W',null],          // nose (3px)
+            [null,'G','W','G',null],          // cockpit (white center, gray sides)
+            ['W','G','G','G','W'],            // upper fuselage (gray body, white edges)
+            ['W','W','W','W','W'],            // main wings (5px full white)
+            [null,'G','G','G',null],          // mid fuselage
+            [null,'W','G','W',null],          // engine section
+            [null,null,'G',null,null],        // tail root
+            [null,'W',null,'W',null],         // twin tail fins
         ];
 
         // Enemy jet: 9 wide x 7 tall — same shape as player but gray, pointing DOWN
@@ -337,7 +339,7 @@
         ];
 
         // Color maps for each sprite type (pixel-sampled from actual gameplay)
-        const PLAYER_COLORS = { 'Y': '#f3d44d', 'K': '#0c0c0c' };
+        const PLAYER_COLORS = { 'W': '#e8e8e8', 'G': '#a0a0a0' }; // white/gray jet (authentic)
         const JET_COLORS = { 'J': '#888888', 'A': '#666666', 'C': '#aaaaaa' };
         const HELI_COLORS = { 'B': '#0f2d67', 'R': '#f5d04a', 'W': '#ffffff', 'K': '#050505' };
         const SHIP_COLORS = { 'K': '#0a0a0a', 'R': '#c84e3b', 'V': '#6e8e2d' };
@@ -717,10 +719,11 @@
 
                     if (this.changeTimer >= this.changeInterval) {
                         this.changeTimer = 0;
-                        this.changeInterval = 30 + Math.random() * 40;
+                        this.changeInterval = 20 + Math.random() * 30; // More frequent changes
 
-                        const minWidth = Math.max(CONFIG.RIVER_MIN_WIDTH, CONFIG.RIVER_MIN_WIDTH + 50 - difficulty * 5);
-                        const maxWidth = CONFIG.RIVER_MAX_WIDTH - difficulty * 3;
+                        // Atari 2600 authentic: extreme width variation (very narrow to wide)
+                        const minWidth = Math.max(100, CONFIG.RIVER_MIN_WIDTH - difficulty * 8);
+                        const maxWidth = CONFIG.RIVER_MAX_WIDTH + 20 - difficulty * 2;
                         const targetWidth = minWidth + Math.random() * (maxWidth - minWidth);
 
                         const center = 100 + Math.random() * (CONFIG.CANVAS_WIDTH - 200);
@@ -731,8 +734,14 @@
                         this.currentRightTarget = Math.min(CONFIG.CANVAS_WIDTH - 30, this.currentRightTarget);
                     }
 
-                    this.leftEdge += (this.currentLeftTarget - this.leftEdge) * 0.05;
-                    this.rightEdge += (this.currentRightTarget - this.rightEdge) * 0.05;
+                    // Atari 2600 authentic: abrupt changes, irregular margins (not smooth lerp)
+                    const changeRate = 0.15 + Math.random() * 0.1; // faster, more erratic
+                    this.leftEdge += (this.currentLeftTarget - this.leftEdge) * changeRate;
+                    this.rightEdge += (this.currentRightTarget - this.rightEdge) * changeRate;
+                    
+                    // Add jitter for dentated/irregular margins
+                    this.leftEdge += (Math.random() - 0.5) * 8;
+                    this.rightEdge += (Math.random() - 0.5) * 8;
 
                     const newY = this.segments.length > 0 ? this.segments[0].y - this.segmentHeight : -this.segmentHeight;
                     this.segments.unshift({
@@ -1343,7 +1352,7 @@
                 const fuelWidth = 120;
                 const fuelHeight = 10;
                 const fuelX = CONFIG.CANVAS_WIDTH / 2 - fuelWidth / 2;
-                const fuelY = 8;
+                const fuelY = CONFIG.CANVAS_HEIGHT - 20; // Bottom of screen (Atari 2600 authentic)
 
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(fuelX - 2, fuelY - 2, fuelWidth + 4, fuelHeight + 4);
