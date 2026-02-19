@@ -738,13 +738,13 @@
                     }
 
                     // Atari 2600 authentic: abrupt changes, irregular margins (not smooth lerp)
-                    const changeRate = 0.15 + Math.random() * 0.1; // faster, more erratic
+                    const changeRate = 0.12 + Math.random() * 0.15; // faster, more erratic
                     this.leftEdge += (this.currentLeftTarget - this.leftEdge) * changeRate;
                     this.rightEdge += (this.currentRightTarget - this.rightEdge) * changeRate;
                     
-                    // Add jitter for dentated/irregular margins
-                    this.leftEdge += (Math.random() - 0.5) * 8;
-                    this.rightEdge += (Math.random() - 0.5) * 8;
+                    // Add stronger jitter for highly dentated/irregular margins
+                    this.leftEdge += (Math.random() - 0.5) * 14;
+                    this.rightEdge += (Math.random() - 0.5) * 14;
 
                     const newY = this.segments.length > 0 ? this.segments[0].y - this.segmentHeight : -this.segmentHeight;
                     this.segments.unshift({
@@ -819,39 +819,38 @@
                     }
                 });
 
-                for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 20) {
+                // Sparse, irregular bank textures (Atari 2600 TIA authentic)
+                for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 24) {
                     const seg = this.getSegmentAtY(y);
                     if (seg) {
-                        for (let x = 8; x < seg.left - 8; x += 20) {
+                        for (let x = 10; x < seg.left - 10; x += 28) {
                             const hash = (x * 7 + y * 13) % 100;
-                            if (hash < 30) {
+                            const xOffset = (hash % 7) - 3;
+                            const yOffset = ((hash * 3) % 7) - 3;
+                            if (hash < 12) {
                                 ctx.fillStyle = COLORS.BANK_DETAIL;
-                                ctx.fillRect(x, y, 6, 6);
-                            } else if (hash < 45) {
+                                ctx.fillRect(x + xOffset, y + yOffset, 4, 4);
+                            } else if (hash < 18) {
                                 ctx.fillStyle = COLORS.BANK_DETAIL2;
-                                ctx.fillRect(x, y, 4, 4);
-                            } else if (hash < 52) {
-                                ctx.fillStyle = '#ffff44';
-                                ctx.fillRect(x + 1, y, 2, 2);
-                            } else if (hash < 58) {
+                                ctx.fillRect(x + xOffset, y + yOffset, 3, 3);
+                            } else if (hash < 22) {
                                 ctx.fillStyle = COLORS.BANK_ROCK;
-                                ctx.fillRect(x, y + 2, 5, 3);
+                                ctx.fillRect(x + xOffset, y + yOffset + 1, 5, 2);
                             }
                         }
-                        for (let x = seg.right + 8; x < CONFIG.CANVAS_WIDTH - 8; x += 20) {
+                        for (let x = seg.right + 10; x < CONFIG.CANVAS_WIDTH - 10; x += 28) {
                             const hash = (x * 11 + y * 17) % 100;
-                            if (hash < 30) {
+                            const xOffset = (hash % 7) - 3;
+                            const yOffset = ((hash * 3) % 7) - 3;
+                            if (hash < 12) {
                                 ctx.fillStyle = COLORS.BANK_DETAIL;
-                                ctx.fillRect(x, y, 6, 6);
-                            } else if (hash < 45) {
+                                ctx.fillRect(x + xOffset, y + yOffset, 4, 4);
+                            } else if (hash < 18) {
                                 ctx.fillStyle = COLORS.BANK_DETAIL2;
-                                ctx.fillRect(x, y, 4, 4);
-                            } else if (hash < 52) {
-                                ctx.fillStyle = '#ff6688';
-                                ctx.fillRect(x + 1, y, 2, 2);
-                            } else if (hash < 58) {
+                                ctx.fillRect(x + xOffset, y + yOffset, 3, 3);
+                            } else if (hash < 22) {
                                 ctx.fillStyle = COLORS.BANK_ROCK;
-                                ctx.fillRect(x, y + 2, 5, 3);
+                                ctx.fillRect(x + xOffset, y + yOffset + 1, 5, 2);
                             }
                         }
                     }
