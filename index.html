@@ -227,8 +227,9 @@
             BULLET_WIDTH: 4,
             BULLET_HEIGHT: 12,
             BULLET_SPEED: 7,
-            FUEL_DEPLETION_RATE: 0.15,
+            FUEL_DEPLETION_RATE: 0.10,
             FUEL_REFILL_RATE: 1.5,
+            FIRST_FUEL_FRAME: 120,
             INITIAL_LIVES: 3,
             INVINCIBILITY_FRAMES: 120,
             BASE_SCROLL_SPEED: 1.8,
@@ -910,6 +911,7 @@
                 this.spawnTimer = 0;
                 this.bridgeSpawnTimer = 0;
                 this.jetSpawnTimer = 0;
+                this.firstFuelSpawned = false;
             }
 
             reset() {
@@ -917,6 +919,7 @@
                 this.spawnTimer = 0;
                 this.bridgeSpawnTimer = 0;
                 this.jetSpawnTimer = 0;
+                this.firstFuelSpawned = false;
             }
 
             update(scrollSpeed, difficulty, river, section) {
@@ -978,7 +981,14 @@
                 const bounds = river.getRiverBoundsAtY(0);
                 const riverWidth = bounds.right - bounds.left;
                 const types = ['helicopter', 'helicopter', 'ship', 'fuel'];
-                const type = types[Math.floor(Math.random() * types.length)];
+                // Force first fuel depot early so player doesn't die before refuel
+                let type;
+                if (!this.firstFuelSpawned && this.enemies.length >= 2) {
+                    type = 'fuel';
+                    this.firstFuelSpawned = true;
+                } else {
+                    type = types[Math.floor(Math.random() * types.length)];
+                }
 
                 let enemy = {
                     type: type,
