@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>River Raid v4.4 - Atari 2600 Clone</title>
+    <title>River Raid v4.5 - Atari 2600 Clone</title>
     <style>
         * {
             margin: 0;
@@ -178,7 +178,7 @@
     <div id="overlay">
         <div id="startScreen">
             <div class="title">RIVER RAID</div>
-            <div class="version">v4.4</div>
+            <div class="version">v4.5</div>
             <div class="subtitle">Atari 2600 Clone</div>
             <div class="instructions">
                 <span>← → or A D</span> : Move Left/Right<br>
@@ -253,41 +253,41 @@
             CONFIG.MIN_SCROLL_SPEED = Math.max(0.3, 0.5 * ratio);
         })();
 
-        // ==================== ATARI 2600 TIA COLOR PALETTE (flat, authentic) ====================
+        // ==================== ATARI 2600 TIA COLOR PALETTE (authentic, researched from real screenshots) ====================
         const COLORS = {
             SKY: '#000000',
-            RIVER: '#4858d8',       // TIA periwinkle blue (flatter)
-            RIVER_DARK: '#3040a8',
-            RIVER_LIGHT: '#5868e0',
-            BANK_LEFT: '#689040',   // TIA olive green (less bright)
-            BANK_RIGHT: '#587028',  // Darker olive
-            BANK_DETAIL: '#789850',
-            BANK_DETAIL2: '#889858',
-            BANK_ROCK: '#786030',
-            PLAYER: '#d8c838',      // TIA yellow (warmer, flatter)
-            PLAYER_WING: '#c0a828',
+            RIVER: '#1428aa',       // Atari 2600 TIA blue (pure, darker — confirmed from screenshots)
+            RIVER_DARK: '#0c1c88',
+            RIVER_LIGHT: '#2038cc',
+            BANK_LEFT: '#007700',   // Atari 2600 TIA green (uniform dark green — confirmed from screenshots)
+            BANK_RIGHT: '#006600',  // Slightly darker green right bank
+            BANK_DETAIL: '#008800',
+            BANK_DETAIL2: '#009900',
+            BANK_ROCK: '#004400',
+            PLAYER: '#d8d8d8',      // Atari 2600: player jet is WHITE/GRAY (not yellow)
+            PLAYER_WING: '#888888',
             PLAYER_COCKPIT: '#080808',
-            BULLET: '#d8c838',
-            HELICOPTER: '#0c2858',  // TIA dark navy (flatter)
-            HELICOPTER_BLADE: '#d8c838',
-            JET: '#989898',         // TIA gray (flatter)
-            JET_WING: '#787878',
+            BULLET: '#ffffff',      // Bullets: white/yellow
+            HELICOPTER: '#0c2858',  // TIA dark navy body
+            HELICOPTER_BLADE: '#d8c838', // Yellow rotor
+            JET: '#787878',         // Enemy jet: gray
+            JET_WING: '#585858',
             JET_FLAME: '#e83800',
-            SHIP: '#b03828',        // TIA red/brick (less saturated)
+            SHIP: '#b03828',        // Ship: red/brick hull
             SHIP_DECK: '#080808',
-            FUEL_DEPOT: '#e878b8', // TIA pink/magenta (less bright)
-            FUEL_TANK: '#b868c8',
-            BRIDGE: '#904818',     // TIA brown (flatter)
-            BRIDGE_DETAIL: '#582800',
-            ISLAND: '#689040',
-            ISLAND_DETAIL: '#789850',
+            FUEL_DEPOT: '#cc2222', // Fuel depot: RED with white markings (confirmed from screenshots)
+            FUEL_TANK: '#aa1111',
+            BRIDGE: '#888888',     // Bridge: GRAY (confirmed from screenshots — barra horizontal cinzenta)
+            BRIDGE_DETAIL: '#555555',
+            ISLAND: '#007700',     // Islands: same green as banks
+            ISLAND_DETAIL: '#009900',
             EXPLOSION: ['#f8f8f8', '#e8e840', '#e89800', '#e83800', '#d81800', '#780000'],
-            HUD_BG: '#b8b8b8',     // TIA light gray (flatter)
-            HUD_TEXT: '#d8c838',   // TIA yellow text
+            HUD_BG: '#909090',     // HUD panel: medium gray (confirmed from screenshots — #808080-#A0A0A0)
+            HUD_TEXT: '#ffffff',   // HUD text: white
             FUEL_FULL: '#18d818',
             FUEL_MED: '#d8d818',
             FUEL_LOW: '#d81818',
-            WATER_SHIMMER: '#5868e0'
+            WATER_SHIMMER: '#2848cc'
         };
 
         // ==================== ATARI 2600 AUTHENTIC PIXEL SPRITE DATA ====================
@@ -355,7 +355,7 @@
         const JET_COLORS = { 'J': '#787878', 'A': '#585858', 'C': '#989898' }; // TIA grays
         const HELI_COLORS = { 'B': '#0c2858', 'R': '#d8c838', 'W': '#f8f8f8', 'K': '#000000' }; // TIA navy/yellow
         const SHIP_COLORS = { 'K': '#080808', 'R': '#b03828', 'V': '#587028' }; // TIA black/red/green
-        const FUEL_COLORS = { 'P': '#e878b8', 'M': '#182878' }; // TIA pink/navy
+        const FUEL_COLORS = { 'P': '#cc2222', 'M': '#ffffff' }; // Atari 2600: RED body + WHITE text/markings
 
         function drawPixelSprite(ctx, sprite, colorMap, x, y, pxSize) {
             for (let row = 0; row < sprite.length; row++) {
@@ -1052,11 +1052,10 @@
                     x: bounds.left,
                     y: -30,
                     width: bounds.right - bounds.left,
-                    height: 24,
-                    health: 3,
-                    points: 500,
-                    gapLeft: bounds.left + (bounds.right - bounds.left) * 0.35,
-                    gapRight: bounds.left + (bounds.right - bounds.left) * 0.65
+                    height: 20,
+                    health: 1,         // Original: 1 hit to destroy
+                    points: 500
+                    // No gap — bridge spans full river width, must be shot to pass
                 });
             }
 
@@ -1106,25 +1105,18 @@
             }
 
             drawBridge(ctx, e) {
-                // Brown plank bridge with yellow center road lines (authentic)
+                // Atari 2600 authentic: solid gray horizontal bar spanning full river width
+                // No gap — player must shoot it to destroy and pass
                 ctx.fillStyle = COLORS.BRIDGE;
-                ctx.fillRect(e.x, e.y, e.gapLeft - e.x, e.height);
-                ctx.fillRect(e.gapRight, e.y, e.x + e.width - e.gapRight, e.height);
-                // Dark brown plank lines
+                ctx.fillRect(e.x, e.y, e.width, e.height);
+                // Dark detail lines (pillar/plank effect)
                 ctx.fillStyle = COLORS.BRIDGE_DETAIL;
-                for (let x = e.x; x < e.gapLeft; x += 8) {
-                    ctx.fillRect(x, e.y + 2, 4, 2);
-                    ctx.fillRect(x + 2, e.y + e.height - 4, 4, 2);
+                for (let x = e.x; x < e.x + e.width; x += 10) {
+                    ctx.fillRect(x, e.y + 3, 2, e.height - 6);
                 }
-                for (let x = e.gapRight; x < e.x + e.width; x += 8) {
-                    ctx.fillRect(x, e.y + 2, 4, 2);
-                    ctx.fillRect(x + 2, e.y + e.height - 4, 4, 2);
-                }
-                // Yellow center road line
-                ctx.fillStyle = '#f2db4d';
-                const midY = e.y + Math.floor(e.height / 2) - 1;
-                ctx.fillRect(e.x, midY, e.gapLeft - e.x, 2);
-                ctx.fillRect(e.gapRight, midY, e.x + e.width - e.gapRight, 2);
+                // Highlight top edge
+                ctx.fillStyle = '#aaaaaa';
+                ctx.fillRect(e.x, e.y, e.width, 2);
             }
 
             // v3: Atari 2600 pixel art enemy jet
@@ -1339,43 +1331,47 @@
                 // Disable text anti-aliasing for pixel-perfect TIA fonts
                 ctx.imageSmoothingEnabled = false;
                 
+                // Top HUD bar (gray panel — authentic Atari 2600 style)
                 ctx.fillStyle = COLORS.HUD_BG;
                 ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, 44);
 
+                // Score (top left)
                 ctx.fillStyle = COLORS.HUD_TEXT;
                 ctx.font = 'bold 14px Courier New';
                 ctx.fillText(`SCORE: ${state.score}`, 10, 16);
 
-                ctx.fillStyle = '#555555';
+                // High score (below score)
+                ctx.fillStyle = '#cccccc';
                 ctx.font = '10px Courier New';
-                ctx.fillText(`HI: ${highScore}`, 10, 30);
+                ctx.fillText(`HI: ${highScore}`, 10, 32);
 
-                if (state.sectionFlash > 0) {
-                    ctx.fillStyle = Math.floor(state.sectionFlash / 4) % 2 ? '#ffff44' : '#ff8800';
-                } else {
-                    ctx.fillStyle = '#44ddff';
-                }
-                ctx.font = 'bold 14px Courier New';
-                ctx.textAlign = 'center';
-                ctx.fillText(`SECTION ${state.section}`, CONFIG.CANVAS_WIDTH / 2, 38);
-                ctx.textAlign = 'left';
-
+                // Lives (top right) — white/gray mini jets
                 ctx.fillStyle = COLORS.HUD_TEXT;
-                ctx.font = 'bold 14px Courier New';
-                ctx.fillText('LIVES:', CONFIG.CANVAS_WIDTH - 120, 20);
+                ctx.font = 'bold 12px Courier New';
+                ctx.fillText('LIVES:', CONFIG.CANVAS_WIDTH - 125, 18);
                 for (let i = 0; i < state.lives; i++) {
-                    ctx.fillStyle = COLORS.PLAYER;
+                    ctx.fillStyle = '#d8d8d8'; // White/gray jets (authentic Atari 2600)
                     ctx.beginPath();
-                    ctx.moveTo(CONFIG.CANVAS_WIDTH - 60 + i * 20, 10);
-                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 66 + i * 20, 24);
-                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 54 + i * 20, 24);
+                    ctx.moveTo(CONFIG.CANVAS_WIDTH - 65 + i * 20, 8);
+                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 72 + i * 20, 24);
+                    ctx.lineTo(CONFIG.CANVAS_WIDTH - 58 + i * 20, 24);
                     ctx.fill();
                 }
 
-                const fuelWidth = 120;
+                // Section flash (brief visual cue only — no persistent text like original)
+                if (state.sectionFlash > 0) {
+                    ctx.fillStyle = Math.floor(state.sectionFlash / 4) % 2 ? '#ffff44' : '#ff8800';
+                    ctx.font = 'bold 14px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`SECTION ${state.section}`, CONFIG.CANVAS_WIDTH / 2, 38);
+                    ctx.textAlign = 'left';
+                }
+
+                // Fuel gauge at bottom of screen (Atari 2600 authentic position)
+                const fuelWidth = 140;
                 const fuelHeight = 10;
                 const fuelX = CONFIG.CANVAS_WIDTH / 2 - fuelWidth / 2;
-                const fuelY = CONFIG.CANVAS_HEIGHT - 20; // Bottom of screen (Atari 2600 authentic)
+                const fuelY = CONFIG.CANVAS_HEIGHT - 18;
 
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(fuelX - 2, fuelY - 2, fuelWidth + 4, fuelHeight + 4);
@@ -1387,15 +1383,14 @@
                 ctx.fillStyle = fuelColor;
                 ctx.fillRect(fuelX, fuelY, (state.fuel / 100) * fuelWidth, fuelHeight);
 
-                ctx.fillStyle = COLORS.HUD_TEXT;
-                ctx.font = '9px Courier New';
+                // E and F labels (authentic Atari 2600 fuel gauge labels)
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Courier New';
+                ctx.fillText('E', fuelX - 12, fuelY + 9);
+                ctx.fillText('F', fuelX + fuelWidth + 4, fuelY + 9);
                 ctx.textAlign = 'center';
-                ctx.fillText('FUEL', CONFIG.CANVAS_WIDTH / 2, fuelY + 9);
+                ctx.fillText('FUEL', CONFIG.CANVAS_WIDTH / 2, fuelY - 3);
                 ctx.textAlign = 'left';
-
-                ctx.fillStyle = '#555555';
-                ctx.font = '10px Courier New';
-                ctx.fillText(`SEC ${state.section} | DIFF ${state.difficulty}`, CONFIG.CANVAS_WIDTH - 140, 38);
             }
         }
 
@@ -1408,15 +1403,12 @@
         }
 
         function checkBridgeCollision(player, bridge) {
+            // Atari 2600 authentic: bridge is a solid bar — any contact = death
             const playerBounds = player.getBounds();
-            if (playerBounds.y < bridge.y + bridge.height &&
-                playerBounds.y + playerBounds.height > bridge.y) {
-                const playerCenterX = playerBounds.x + playerBounds.width / 2;
-                if (playerCenterX < bridge.gapLeft || playerCenterX > bridge.gapRight) {
-                    return true;
-                }
-            }
-            return false;
+            return playerBounds.y < bridge.y + bridge.height &&
+                   playerBounds.y + playerBounds.height > bridge.y &&
+                   playerBounds.x < bridge.x + bridge.width &&
+                   playerBounds.x + playerBounds.width > bridge.x;
         }
 
         // ==================== MAIN GAME ====================
@@ -1667,11 +1659,12 @@
                         }
                     } else if (checkCollision(playerBounds, e)) {
                         if (e.isFuel) {
-                            state.fuel = Math.min(100, state.fuel + 30);
+                            // Atari 2600 authentic: gradual refuel while flying over depot
+                            // Slower speed = more fuel per frame. Player can also destroy it for points.
+                            const refuelRate = CONFIG.FUEL_REFILL_RATE * (CONFIG.BASE_SCROLL_SPEED / state.scrollSpeed);
+                            state.fuel = Math.min(100, state.fuel + refuelRate);
                             audio.playRefuel();
-                            state.score += e.points;
-                            explosions.add(e.x + e.width / 2, e.y + e.height / 2, 0.5);
-                            e.health = 0;
+                            // Don't immediately destroy — keep it refueling until player passes or shoots it
                         } else {
                             playerDeath();
                             return;
@@ -1684,10 +1677,8 @@
                 enemies.enemies.forEach(e => {
                     if (e.health > 0) {
                         if (e.type === 'bridge') {
-                            const leftSection = { x: e.x, y: e.y, width: e.gapLeft - e.x, height: e.height };
-                            const rightSection = { x: e.gapRight, y: e.y, width: e.x + e.width - e.gapRight, height: e.height };
-
-                            if (checkCollision(bullet, leftSection) || checkCollision(bullet, rightSection)) {
+                            // Solid bridge — any bullet hit destroys it
+                            if (checkCollision(bullet, { x: e.x, y: e.y, width: e.width, height: e.height })) {
                                 e.health--;
                                 bullet.y = -100;
                                 audio.playEnemyHit();
